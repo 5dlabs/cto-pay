@@ -1,12 +1,9 @@
-## Acceptance Criteria for Task 3
+## Acceptance Criteria
 
-1. Run `anchor build` — compiles with zero warnings.
-2. IDL contains all 4 new instructions: `create_customer_account`, `deposit`, `withdraw`, `update_spending_caps` with correct args.
-3. Verify `create_customer_account` IDL shows `max_per_task` and `max_per_day` parameters.
-4. Verify `deposit` and `withdraw` IDL show `amount` parameter.
-5. Code review: confirm `withdraw` does NOT check `operator_config.paused`.
-6. Code review: all SPL token transfers use `anchor_spl::token::Transfer` CPI, not raw invoke.
-7. Code review: every `u64` operation uses `checked_*` with error propagation.
-8. Code review: `customer_token_account.mint == operator_config.mint` validation present in deposit and withdraw account structs.
+- [ ] Run `anchor test` (which starts solana-test-validator, deploys the program, and runs the Mocha suite). All test groups (12 groups, 30+ individual test cases) pass with zero failures. Total execution time is under 60 seconds. Coverage includes: all 11 instructions (initialize_operator, create_customer_account, register_agent_package, update_agent_package, deposit, withdraw, update_spending_caps, pause, unpause, settle_task, refund_task), all 3 settlement cases, all error codes (InsufficientBalance, ExceedsPerTaskCap, ExceedsDailyCap, Unauthorized, ProgramPaused, InvalidSplitBps, DuplicateTaskId, PackageInactive), and the refund lifecycle. Run `npm run test:ci` to verify the CI-compatible invocation also passes.
 
-_Generated from task metadata (LLM fallback)._
+## Verification Notes
+
+- [ ] Confirm dependencies are satisfied before implementation.
+- [ ] Update tests, docs, and configuration touched by this task.
+- [ ] Validate the final behavior against the task objective.

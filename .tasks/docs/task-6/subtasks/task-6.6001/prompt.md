@@ -1,43 +1,24 @@
 <identity>
-You are tess working on subtask 6001 of task 6.
+You are stitch working on subtask 6001 of task 6.
 </identity>
 
 <context>
 <scope>
-Write spending-caps.test.ts with 7 tests verifying that the program enforces per-task and daily spending caps correctly, including boundary exact-match cases and daily reset after warping past SLOTS_PER_DAY.
+Create the demo/cli/ project with all dependencies, implement PDA derivation functions matching on-chain SHA-256 logic, build Explorer link generators, and set up chalk/ora formatting helpers.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `tests/edge-cases/spending-caps.test.ts`. Import helpers from Task 5's setup.ts/helpers.ts.
-
-2. Add a shared error assertion helper at the top: `async function expectError(fn: () => Promise<any>, errorCode: string)` that catches the Anchor error, parses the `AnchorError` object, and asserts `error.error.errorCode.code === errorCode`. Fail the test if no error is thrown.
-
-3. Test 'settle_task exceeding max_per_task fails with SpendingCapPerTaskExceeded':
-   - Create customer with max_per_task=50_000_000, max_per_day=200_000_000. Deposit 100_000_000.
-   - Attempt settle for 50_000_001. Assert error code === 'SpendingCapPerTaskExceeded'.
-
-4. Test 'settle_task exceeding daily cap fails with SpendingCapDailyExceeded':
-   - Create customer with max_per_task=100_000_000, max_per_day=150_000_000. Deposit 200_000_000.
-   - Settle 100_000_000 (succeeds). Attempt settle 60_000_000 (daily_spent would be 160M > 150M). Assert 'SpendingCapDailyExceeded'.
-
-5. Test 'sequential settlements individually under per-task but cumulatively over daily cap':
-   - max_per_task=80_000_000, max_per_day=200_000_000. Deposit 300_000_000.
-   - Settle 80M (ok, daily=80M), settle 80M (ok, daily=160M), settle 80M (fail, daily would be 240M > 200M). Assert 'SpendingCapDailyExceeded' on third.
-
-6. Test 'after daily cap hit, warping past SLOTS_PER_DAY allows new settlement':
-   - Hit daily cap as above. Warp to currentSlot + 216_001. Settle 80M again. Assert succeeds, daily_spent === 80_000_000.
-
-7. Test 'updating caps to lower values does not retroactively fail':
-   - Settle 40M under max_per_task=50M. Update caps to max_per_task=30M. Assert no error during update. Next settlement of 30M should succeed even though total_spent > new per-task cap.
-
-8. Test 'settlement exactly at per-task cap boundary succeeds':
-   - max_per_task=50_000_000. Settle exactly 50_000_000. Assert succeeds.
-
-9. Test 'settlement exactly at daily cap boundary succeeds':
-   - max_per_day=100_000_000. Settle 60M, then 40M. Assert second succeeds (daily_spent === 100M).
+1. Create `demo/cli/` directory with `package.json` (name: cto-demo-cli, type: module), `tsconfig.json` (target: ES2022, module: NodeNext, strict: true, outDir: dist).
+2. Install dependencies: @coral-xyz/anchor, @solana/web3.js, @solana/spl-token, chalk (v5 ESM), ora, commander (for CLI arg parsing).
+3. Implement `src/cli.ts`: use commander to parse `--cluster` (localnet|devnet, default localnet) and `--keypair` (operator keypair path, default ~/.config/solana/id.json). Map cluster to RPC URL (localhost:8899 for localnet, devnet URL for devnet).
+4. Implement `src/pda.ts` with functions: `deriveOperatorConfig(programId)`, `deriveCustomerBalance(programId, customer)`, `deriveAgentPackage(programId, packageId)`, `deriveTaskReceipt(programId, taskId)`, `deriveVault(programId, mint)`. Each must use the SHA-256 hashing approach matching the on-chain program (hash relevant inputs with crypto.createHash('sha256'), use result as seed in PublicKey.findProgramAddressSync).
+5. Implement `src/utils.ts` with: `explorerLink(signature, cluster)` returning `https://explorer.solana.com/tx/${sig}?cluster=${cluster}`, `formatUsdc(lamports: number)` returning formatted string with 2 decimal places (divide by 1_000_000), `phaseHeader(num, title)` using chalk.bold for section headers.
+6. Implement `src/receipt.ts`: generate mock receipt JSON with task_id, customer pubkey, duration_seconds, infra_tier, provider, agent_used, cost breakdown object, total, ISO timestamp. Export function to compute SHA-256 hash of the JSON string as a Uint8Array for the receipt_hash parameter.
+7. Import IDL from `../../target/idl/cto_billing.json` and set up Anchor Program instance creation in a helper.
+8. Add npm scripts: `demo:localnet` (ts-node or tsx src/index.ts --cluster localnet), `demo:devnet` (tsx src/index.ts --cluster devnet).
 </implementation_plan>
 
 <validation>
-Run `bun test tests/edge-cases/spending-caps.test.ts` — all 7 tests pass. Verify each failure test asserts the exact CtoPayError variant string. Verify boundary tests (exact cap amounts) pass without error. Verify slot-warp test confirms daily_spent reset.
+Run `npx tsc --noEmit` — compiles with zero errors. Unit test PDA derivation: call each derive function with known inputs and verify output matches expected Pubkeys from Anchor test suite (Task 2). Unit test formatUsdc(10_000_000) returns '10.00'. Unit test explorerLink returns correctly formatted URL. Unit test receipt hash: compute hash of a fixed JSON string and verify it matches expected SHA-256 digest.
 </validation>

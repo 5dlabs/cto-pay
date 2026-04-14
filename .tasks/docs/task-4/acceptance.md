@@ -1,13 +1,9 @@
-## Acceptance Criteria for Task 4
+## Acceptance Criteria
 
-1. Run `anchor build` — compiles with zero warnings under pedantic clippy.
-2. IDL contains all 9 instructions: initialize_operator, create_customer_account, deposit, withdraw, settle_task, refund_task, update_spending_caps, pause, unpause.
-3. Verify `settle_task` IDL args include `task_id_hash` (32-byte array), `amount` (u64), `receipt_hash` (32-byte array).
-4. Code review: `settle_task` performs 5 validation checks in order (paused, amount > 0, per-task cap, daily cap with reset, balance).
-5. Code review: fee_amount computed as `amount * protocol_fee_bps / 10_000` using checked arithmetic (multiply first).
-6. Code review: `refund_task` does NOT check paused state.
-7. Code review: `withdraw` (from Task 3) does NOT check paused state.
-8. Code review: daily cap reset uses slot comparison with `SLOTS_PER_DAY = 216_000`.
-9. Program binary size: `ls -la target/deploy/cto_pay.so` — under 1.4MB.
+- [ ] Run `cargo build --features solana-billing` in the controller crate — compiles with zero errors. Run `cargo test --features solana-billing` — unit tests pass for: (1) SettlementEvent serialization/deserialization round-trip, (2) ReceiptJson generation with correct SHA-256 hash computation (hash a known receipt, verify against precomputed hash), (3) Redis publisher correctly formats XADD command (mock Redis or use testcontainers with Redis), (4) Billing amount calculation from pod duration (120s) and tier (standard at $0.75/run) produces expected USDC lamport value. Run `cargo build` without the feature flag — compiles cleanly with no Solana-related code included (verify via binary size or grep).
 
-_Generated from task metadata (LLM fallback)._
+## Verification Notes
+
+- [ ] Confirm dependencies are satisfied before implementation.
+- [ ] Update tests, docs, and configuration touched by this task.
+- [ ] Validate the final behavior against the task objective.

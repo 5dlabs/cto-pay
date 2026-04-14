@@ -1,31 +1,22 @@
 <identity>
-You are tess working on subtask 5003 of task 5.
+You are rex working on subtask 5003 of task 5.
 </identity>
 
 <context>
 <scope>
-Write settlement.test.ts covering single/multi-settlement, fee computation, daily_spent tracking, daily cap reset via slot warp, and TaskReceipt field verification. Write refund.test.ts covering refund flow and withdrawability of refunded funds.
+Build the transaction construction module that derives all required PDAs using SHA-256 seed logic matching the on-chain program and constructs settle_task and refund_task instructions with the correct account lists.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `tests/happy-path/settlement.test.ts`:
-   - Test 'settle_task decreases customer balance and increases treasury balance': Initialize program, create customer, deposit 100_000_000. Settle task 'TASK-1' for 20_000_000. Assert customer balance === 80_000_000, treasury token balance increased by 20_000_000. Assert TaskReceipt PDA exists.
-   - Test 'TaskReceipt fee_amount equals amount * protocol_fee_bps / 10_000': With 500 bps fee, settle 20_000_000. Fetch TaskReceipt, assert fee_amount === 20_000_000 * 500 / 10_000 === 1_000_000.
-   - Test 'multiple settlements update task_count and total_spent': Settle 3 tasks (10M, 15M, 20M). Fetch CustomerBalance, assert task_count===3, total_spent===45_000_000.
-   - Test 'daily_spent increments correctly across settlements': Settle 2 tasks in same context (no slot warp). Assert daily_spent === sum of both amounts.
-   - Test 'daily cap resets after SLOTS_PER_DAY — new settlement succeeds': Settle a task, then call `context.warpToSlot(currentSlot + 216_001)`. Settle another task. Fetch CustomerBalance, assert daily_spent equals only the second settlement amount (reset occurred).
-   - Test 'TaskReceipt task_id_hash matches SHA-256 of input': Settle 'TASK-42'. Fetch TaskReceipt, compare task_id_hash field to `computeTaskIdHash('TASK-42')`.
-   - Test 'TaskReceipt receipt_hash stores provided hash': Provide a known 32-byte hash during settlement. Fetch TaskReceipt, assert receipt_hash matches.
-   - Test 'TaskReceipt status is Settled': Fetch TaskReceipt after settlement, assert status enum === Settled (variant index 0 or matching Anchor enum).
-
-2. Create `tests/happy-path/refund.test.ts`:
-   - Test 'refund_task restores customer balance and updates TaskReceipt status': Settle a task for 20_000_000, then refund it. Assert customer balance increased by 20_000_000, TaskReceipt status === Refunded, total_spent decreased by 20_000_000.
-   - Test 'refunded funds are withdrawable': Settle 20_000_000, refund, then withdraw the refunded amount. Assert customer balance === 0, customer ATA increased by refund amount.
-
-3. Use Bankrun's `warpToSlot()` for the daily reset test — compute current slot from context and add 216_001.
+1. Implement `src/pda.rs` with functions: `derive_operator_config(program_id) -> (Pubkey, u8)`, `derive_customer_balance(program_id, customer: &Pubkey) -> (Pubkey, u8)`, `derive_agent_package(program_id, package_id: &str) -> (Pubkey, u8)`, `derive_task_receipt(program_id, task_id: &str) -> (Pubkey, u8)`, `derive_vault(program_id, mint: &Pubkey) -> (Pubkey, u8)`. Each uses `sha2::Sha256` to hash the relevant seed components, then `Pubkey::find_program_address` with the hash output as seed, exactly matching the on-chain derivation.
+2. Implement `src/transaction.rs` with `TransactionBuilder` struct holding program_id, operator keypair reference, and RpcClient reference.
+3. Implement `build_settle_task()`: takes SettlementEvent, derives all PDAs (operator_config, customer_balance, vault, task_receipt, and optionally agent_package + author_ata). Construct the instruction data (Anchor discriminator + serialized args: task_id, amount, receipt_hash, quality_met). Build AccountMeta list: operator (signer, writable), operator_config (read), customer_balance (writable), vault (writable), treasury_ata (writable), task_receipt (writable, init), system_program, token_program, clock sysvar. If agent_package present: add agent_package (writable) and author_ata (writable).
+4. Implement `build_refund_task()`: similar pattern with refund-specific accounts.
+5. Implement blockhash management: `BlockhashCache` struct with `get_blockhash()` that returns cached value if < 30 seconds old, otherwise fetches fresh via `RpcClient::get_latest_blockhash()`. Expose `force_refresh()` for BlockhashNotFound recovery.
+6. Assemble full Transaction with the instruction, recent blockhash, and sign with operator keypair.
 </implementation_plan>
 
 <validation>
-Run `bun test tests/happy-path/settlement.test.ts tests/happy-path/refund.test.ts` — all 10 tests pass (8 settlement + 2 refund). Verify fee computation test checks exact integer arithmetic. Verify slot warp test confirms daily_spent reset to 0 before the new settlement amount is applied.
+Unit tests: (1) Derive operator_config, customer_balance, agent_package, task_receipt, and vault PDAs from known inputs (hardcoded program_id, customer pubkey, package_id, task_id, mint) — verify output matches expected Pubkeys computed independently (cross-reference with TypeScript PDA derivation from Task 3 or from anchor test fixtures). (2) Verify settle_task instruction data serialization: construct instruction, check discriminator bytes and serialized args match expected byte layout. (3) Verify account list for settle_task with agent_package includes exactly the expected accounts in correct order with correct is_signer/is_writable flags. (4) Verify account list for settle_task without agent_package omits agent_package and author_ata accounts.
 </validation>

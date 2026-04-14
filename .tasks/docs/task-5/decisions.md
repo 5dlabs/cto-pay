@@ -1,7 +1,9 @@
-## Decisions for Task 5
+## Decision Points
 
-- Stack: TypeScript, Bankrun, @coral-xyz/anchor, @solana/spl-token, Bun
-- Agent: tess
-- Priority: high
+- Use anchor-client crate for instruction construction vs. manually building instructions from the IDL — anchor-client adds a large dependency but provides type safety; manual construction is lighter but more error-prone.
+- Observability approach: structured tracing logs only vs. Prometheus metrics endpoint — Prometheus provides richer dashboarding but adds complexity; tracing logs are simpler and sufficient for hackathon scope.
 
-_Fallback doc: LLM generation was unavailable._
+## Coordination Notes
+
+- Agent owner: rex
+- Primary stack: Rust/solana-sdk/solana-client

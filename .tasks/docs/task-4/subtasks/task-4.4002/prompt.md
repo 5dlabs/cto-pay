@@ -4,14 +4,71 @@ You are rex working on subtask 4002 of task 4.
 
 <context>
 <scope>
-Create the refund_task instruction that credits the customer's on-chain balance, decrements total_spent, and marks a TaskReceipt as Refunded. This is a ledger-only operation with no SPL token transfer — the operator is trusted to maintain vault solvency separately.
+Define the SettlementEvent struct with EventType enum in billing/event.rs and the ReceiptJson struct with CostLineItem in billing/receipt.rs, both with full Serialize/Deserialize derives and feature gating.
 </scope>
 </context>
 
 <implementation_plan>
-Create `instructions/refund_task.rs`. Define the `RefundTask` Anchor accounts struct with: `operator` (Signer), `operator_config` (has_one = authority), `customer_balance` (mut), `task_receipt` (mut, constraint `task_receipt.customer == customer_balance.customer @ CtoPayError::InvalidCustomer` — ensures refund goes to correct customer). Handler takes no additional args (all data comes from the TaskReceipt). Logic: (1) Do NOT check `operator_config.paused` — refunds work during pause (same safety rationale as withdrawals: returning funds to customers). Add a code comment explaining this. (2) Check `task_receipt.status == TaskStatus::Settled` → TaskNotSettled. (3) Credit: `customer_balance.balance = customer_balance.balance.checked_add(task_receipt.amount).ok_or(ArithmeticOverflow)?`. (4) Decrement: `customer_balance.total_spent = customer_balance.total_spent.checked_sub(task_receipt.amount).ok_or(ArithmeticOverflow)?`. (5) Set `task_receipt.status = TaskStatus::Refunded`. Add detailed doc comment explaining the ledger-only accounting model: no SPL transfer occurs, the operator must independently replenish the vault if needed to cover subsequent withdrawals. Export from `instructions/mod.rs`.
+1. Create `crates/controller/src/billing/event.rs`:
+   ```rust
+   use serde::{Serialize, Deserialize};
+
+   #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+   #[serde(rename_all = "snake_case")]
+   pub enum EventType {
+       Settle,
+       Refund,
+   }
+
+   #[derive(Debug, Clone, Serialize, Deserialize)]
+   pub struct SettlementEvent {
+       pub task_id: String,
+       pub customer_pubkey: String,
+       pub amount_usdc_lamports: u64,
+       pub receipt_hash: [u8; 32],
+       pub receipt_url: String,
+       pub agent_package_id: Option<String>,
+       pub quality_met: bool,
+       pub event_type: EventType,
+       pub coderun_name: String,
+       pub timestamp: i64,
+   }
+   ```
+
+2. Create `crates/controller/src/billing/receipt.rs`:
+   ```rust
+   use serde::{Serialize, Deserialize};
+
+   #[derive(Debug, Clone, Serialize, Deserialize)]
+   pub struct CostLineItem {
+       pub description: String,
+       pub amount_usdc: f64,
+   }
+
+   #[derive(Debug, Clone, Serialize, Deserialize)]
+   pub struct ReceiptJson {
+       pub task_id: String,
+       pub customer: String,
+       pub coderun_name: String,
+       pub duration_seconds: u64,
+       pub infra_tier: String,
+       pub provider: String,
+       pub agent_used: String,
+       pub itemized_costs: Vec<CostLineItem>,
+       pub total_usdc: f64,
+       pub timestamp: String,  // ISO 8601
+   }
+   ```
+   Add a method `ReceiptJson::to_json_bytes(&self) -> serde_json::Result<Vec<u8>>` for serialization.
+   Add a method `ReceiptJson::compute_sha256(&self) -> [u8; 32]` that serializes to canonical JSON then hashes with sha2.
+
+3. Add a helper function to compute billing amount: `pub fn compute_billing_amount(duration_seconds: u64, tier: &str) -> u64` that returns USDC lamports based on tier rates. Use constants for rates (STANDARD_RATE_USDC_LAMPORTS, etc.).
+
+4. Write unit tests in each module:
+   - `event.rs`: Serde round-trip test for SettlementEvent (serialize then deserialize, assert equality).
+   - `receipt.rs`: Build a known ReceiptJson, serialize, compute SHA-256, assert against precomputed hash. Test `compute_billing_amount` for standard tier (120s → expected lamport value).
 </implementation_plan>
 
 <validation>
-Verify `anchor build` compiles. IDL contains `refund_task` instruction. Code review: NO pause check present — add comment explaining why. Code review: status guard checks `TaskStatus::Settled` before allowing refund. Code review: customer_balance.balance is credited by task_receipt.amount using checked_add. Code review: total_spent is decremented using checked_sub. Code review: no SPL token transfer CPI exists in this instruction. Code review: constraint validates task_receipt.customer == customer_balance.customer.
+Run `cargo test --features solana-billing` — tests pass for: (1) SettlementEvent serializes to valid JSON and deserializes back with all fields intact, (2) ReceiptJson SHA-256 computation for a known receipt produces a deterministic, precomputed 32-byte hash, (3) compute_billing_amount(120, "standard") returns expected USDC lamport value (e.g., 750_000 for $0.75). All tests are gated behind #[cfg(test)] and #[cfg(feature = "solana-billing")].
 </validation>

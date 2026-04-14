@@ -1,92 +1,93 @@
 <identity>
-You are tess, the TypeScript, Bankrun, @coral-xyz/anchor, @solana/spl-token, Bun implementation agent. You own task 6 end-to-end.
+You are stitch, the TypeScript/Solana-Web3.js/@coral-xyz/anchor implementation agent. You own task 6 end-to-end.
 </identity>
 
 <context>
 <task_overview>
-Task 6: Anchor Program Tests — Edge Cases, Error Paths, and Security Scenarios (Tess - TypeScript/Bankrun)
-Write negative test cases covering all error paths, spending cap enforcement, unauthorized access attempts, paused state behavior, overflow scenarios, and double-operation guards. These tests validate the program's security properties.
+Task 6: End-to-End CLI Demo Script (Stitch - TypeScript/Solana-Web3.js/Anchor)
+Build the hackathon demo script that executes the full billing + marketplace flow end-to-end, producing console output and Solana Explorer links for the demo video (PRD Section 11, Deliverable #2).
 Priority: high
-Dependencies: 4
+Dependencies: 1, 2
 </task_overview>
 </context>
 
 <implementation_plan>
-1. **Test file structure**:
-   ```
-   tests/
-     edge-cases/
-       spending-caps.test.ts
-       authorization.test.ts
-       pause-behavior.test.ts
-       overflow-edge.test.ts
-       double-operations.test.ts
-       validation.test.ts
-   ```
+1. Set up project at `demo/cli/` with package.json, tsconfig.json. Dependencies: @coral-xyz/anchor, @solana/web3.js, @solana/spl-token, chalk (colored output), ora (spinners). Import IDL from `../../target/idl/cto_billing.json` and types from `../../target/types/cto_billing.ts`.
 
-2. **spending-caps.test.ts** — Spending cap enforcement (DF-3 from PRD):
-   - Test: `settle_task` with amount > `max_per_task` fails with `SpendingCapPerTaskExceeded`.
-   - Test: `settle_task` where cumulative `daily_spent + amount > max_per_day` fails with `SpendingCapDailyExceeded`.
-   - Test: Sequential settlements that individually pass per-task cap but cumulatively exceed daily cap (settle 3x 80 USDC with daily cap 200 → third fails).
-   - Test: After daily cap is hit, warping past `SLOTS_PER_DAY` slots allows new settlement.
-   - Test: Updating caps to lower values doesn't retroactively fail (caps apply to future settlements only).
-   - Test: Settlement exactly at cap boundary succeeds (amount == max_per_task).
-   - Test: Settlement exactly at daily boundary succeeds (daily_spent + amount == max_per_day).
+2. Configuration: accept `--cluster` flag (localnet|devnet, default localnet). Accept `--keypair` for operator keypair path. Use `@solana/web3.js` Connection with appropriate RPC URL.
 
-3. **authorization.test.ts** — Unauthorized access:
-   - Test: Non-operator calling `settle_task` fails (wrong signer).
-   - Test: Non-operator calling `refund_task` fails.
-   - Test: Non-operator calling `pause` fails.
-   - Test: Non-operator calling `unpause` fails.
-   - Test: Non-customer calling `withdraw` on another customer's balance fails (wrong PDA derivation or signer).
-   - Test: Non-customer calling `update_spending_caps` on another customer's account fails.
-   - Test: Settling a task against wrong customer's balance (mismatched customer pubkey).
+3. Implement PDA derivation helpers matching on-chain logic: `deriveOperatorConfig()`, `deriveCustomerBalance(customer)`, `deriveAgentPackage(packageId)`, `deriveTaskReceipt(taskId)`, `deriveVault(mint)`. All use SHA-256 hashing per D2.
 
-4. **pause-behavior.test.ts** — Circuit breaker:
-   - Test: When paused, `create_customer_account` fails with `ProgramPaused`.
-   - Test: When paused, `deposit` fails with `ProgramPaused`.
-   - Test: When paused, `settle_task` fails with `ProgramPaused`.
-   - Test: When paused, `withdraw` SUCCEEDS (safety valve).
-   - Test: When paused, `refund_task` SUCCEEDS (returns funds to customers).
-   - Test: After `unpause`, all operations resume normally.
-   - Test: Only operator can pause/unpause.
+4. Implement 10 demo phases (each logs a section header with phase number):
 
-5. **overflow-edge.test.ts** — Arithmetic edge cases:
-   - Test: Deposit of `u64::MAX` (should succeed or fail gracefully — checked arithmetic).
-   - Test: Settle with amount that would overflow `total_spent` (pre-seed with near-max values).
-   - Test: Daily spending with values near `u64::MAX` boundary.
-   - Test: `protocol_fee_bps` computation doesn't overflow: large amount (e.g., 10^18) * 10000 bps.
-   - Test: Zero amount deposit fails with `ZeroAmount`.
-   - Test: Zero amount settlement fails with `ZeroAmount`.
-   - Test: Zero amount withdrawal fails with `ZeroAmount`.
+   **Phase 0: Setup & Token Provisioning**
+   - Generate keypairs: operator, customer, agentAuthor.
+   - If localnet: airdrop SOL to all three.
+   - Create a mock USDC mint (6 decimals) owned by operator.
+   - Create ATAs for: customer, agentAuthor, treasury (operator's second ATA).
+   - Mint 1000 USDC to customer's ATA.
+   - Log: all pubkeys, mint address, Solana Explorer links.
 
-6. **double-operations.test.ts** — Idempotency and state guards:
-   - Test: Creating same customer account twice fails (Anchor init constraint).
-   - Test: Settling same `task_id_hash` twice fails (PDA already exists — Anchor init constraint).
-   - Test: Refunding an already-refunded task fails with `TaskNotSettled`.
-   - Test: Refunding a task that was never settled (doesn't exist — should fail on account validation).
+   **Phase 1: Initialize Operator**
+   - Call `initialize_operator` with treasury ATA, mock USDC mint, protocol_fee_bps=0.
+   - Log: OperatorConfig PDA, transaction signature, Explorer link.
 
-7. **validation.test.ts** — Input validation:
-   - Test: `initialize_operator` with `protocol_fee_bps > 10000` fails with `InvalidFeeBps`.
-   - Test: Deposit with wrong mint token account fails with `InvalidMint`.
-   - Test: `create_customer_account` with `max_per_task > max_per_day` fails (if validated).
-   - Test: Withdraw more than balance fails with `InsufficientBalance`.
-   - Test: Settle more than balance fails with `InsufficientBalance`.
+   **Phase 2: Register Agent Package**
+   - Author calls `register_agent_package` with package_id='smart-debug-agent-v1', split_bps=3000 (30%), source_uri='https://github.com/example/smart-debug-agent'.
+   - Log: AgentPackage PDA, author wallet, split percentage, Explorer link.
 
-8. Each test must assert the specific error code, not just "transaction failed". Use Anchor's `AnchorError` parsing to validate error code matches expected `CtoPayError` variant.
+   **Phase 3: Create Customer Account**
+   - Customer calls `create_customer_account` with max_per_task=100_000_000 (100 USDC), max_per_day=500_000_000 (500 USDC).
+   - Log: CustomerBalance PDA, spending caps.
+
+   **Phase 4: Customer Deposits USDC**
+   - Customer calls `deposit` with 200 USDC (200_000_000).
+   - Log: deposit amount, new balance, Explorer link.
+
+   **Phase 5: Settle Task — Quality Met (Author Gets Paid)**
+   - Operator calls `settle_task` with task_id='CTO-1234', amount=10_000_000 (10 USDC), receipt_hash (SHA-256 of mock receipt JSON), quality_met=true, agent_package PDA.
+   - Log: task_id, amount charged, author earned (3 USDC), treasury received (7 USDC), TaskReceipt PDA, quality_met=true, Explorer link.
+   - Highlight the SPLIT with colored output: '🟢 Quality MET — Author earned 3.00 USDC (30%), Treasury received 7.00 USDC (70%)'.
+
+   **Phase 6: Settle Task — Quality NOT Met (Customer Protected)**
+   - Operator calls `settle_task` with task_id='CTO-1235', amount=15_000_000 (15 USDC), quality_met=false, agent_package PDA.
+   - Log: task_id, amount charged=0, author earned=0, customer balance unchanged, quality_met=false.
+   - Highlight: '🔴 Quality NOT MET — Customer not charged. Author earned nothing.'
+
+   **Phase 7: Settle Task — Default Agent (No Split)**
+   - Operator calls `settle_task` with task_id='CTO-1236', amount=5_000_000 (5 USDC), no agent_package, quality_met=true.
+   - Log: full amount to treasury, no split.
+
+   **Phase 8: Verify On-Chain Receipts**
+   - Fetch all three TaskReceipt PDAs. Display a formatted table showing:
+     | Task ID | Amount | Author Earned | Quality | Status |
+     |---------|--------|---------------|---------|--------|
+     | CTO-1234 | 10.00 | 3.00 | ✅ MET | Settled |
+     | CTO-1235 | 0.00 | 0.00 | ❌ NOT MET | Settled |
+     | CTO-1236 | 5.00 | 0.00 | ✅ MET | Settled |
+   - Fetch AgentPackage: show total_earned, task_count, success_count.
+
+   **Phase 9: Customer Withdraws Remaining Balance**
+   - Customer calls `withdraw` with remaining balance.
+   - Log: withdrawal amount, final balance=0, Explorer link.
+   - Final summary: 'Demo complete! Customer deposited 200 USDC, was charged 15 USDC for 2 successful tasks, was protected from 1 failed task, and withdrew 185 USDC.'
+
+5. Add `npm run demo:localnet` and `npm run demo:devnet` scripts.
+
+6. Handle errors gracefully: if any phase fails, log the error with context and the Solana transaction logs, then exit with non-zero code.
+
+7. Generate a mock receipt JSON blob for Phase 5 with fields: task_id, customer, duration_seconds, infra_tier, provider, agent_used, cost breakdown, total, timestamp. Compute SHA-256 hash of this JSON string for the receipt_hash parameter.
 </implementation_plan>
 
 <acceptance_criteria>
-Run `bun test tests/edge-cases/` — all tests pass. Minimum 30 negative test cases covering: 7 spending cap enforcement, 7 authorization failures, 7 pause behavior (including withdraw/refund succeeding while paused), 5 overflow/arithmetic edge cases, 4 double-operation guards, 5 input validation. Every test asserts the specific `CtoPayError` variant (not just 'transaction failed'). Test suite completes in under 30 seconds using Bankrun. Combined with Task 5, total test count exceeds 45.
+Run `npm run demo:localnet` against a running `solana-test-validator` with the cto-billing program deployed. The script completes all 10 phases without errors in under 120 seconds. Verify specific outputs: (1) Phase 5 shows author_earned = 3.00 USDC and treasury_received = 7.00 USDC, (2) Phase 6 shows amount_charged = 0.00 and 'Quality NOT MET' message, (3) Phase 8 receipt table displays all 3 tasks with correct amounts and quality indicators, (4) Phase 9 shows withdrawal of exactly 185.00 USDC (200 deposited - 10 - 5 charged), (5) All logged Explorer links contain valid base58 transaction signatures. Run `npx tsc --noEmit` — TypeScript compilation passes with zero errors.
 
 See also: acceptance.md in this task directory for the checklist version.
 </acceptance_criteria>
 
 <subtasks>
-- Spending cap enforcement tests — per-task limits, daily limits, boundary conditions, and cap reset via slot warp: Write spending-caps.test.ts with 7 tests verifying that the program enforces per-task and daily spending caps correctly, including boundary exact-match cases and daily reset after warping past SLOTS_PER_DAY.
-- Authorization failure tests — wrong signer rejection for all operator and customer instructions: Write authorization.test.ts with 7 tests verifying that all operator-gated instructions (settle, refund, pause, unpause) reject non-operator signers and all customer-gated instructions (withdraw, update_caps) reject non-owner signers.
-- Pause behavior tests — circuit breaker blocking and safety valve pass-through verification: Write pause-behavior.test.ts with 7 tests verifying that when the program is paused, create_customer_account/deposit/settle are blocked with ProgramPaused, while withdraw and refund_task succeed as safety valves, and unpause restores normal operation.
-- Overflow and arithmetic edge case tests — u64 boundary, fee computation overflow, and zero amount rejection: Write overflow-edge.test.ts with 7 tests covering u64::MAX deposits, near-overflow total_spent, large-amount fee computation, and zero-amount rejection for deposit/settle/withdraw.
-- Double-operation guard tests — duplicate account creation, duplicate settlement, and double refund prevention: Write double-operations.test.ts with 4 tests verifying that creating the same customer twice, settling the same task_id twice, refunding an already-refunded task, and refunding a non-existent task all fail with appropriate errors.
-- Input validation tests — invalid fee bps, wrong mint, cap constraints, and insufficient balance: Write validation.test.ts with 5 tests verifying that initialize_operator rejects invalid fee bps, deposit rejects wrong mint, create_customer_account validates cap relationships, and withdraw/settle reject amounts exceeding balance.
+- Set up TypeScript project, CLI argument parsing, PDA derivation helpers, and formatting utilities: Create the demo/cli/ project with all dependencies, implement PDA derivation functions matching on-chain SHA-256 logic, build Explorer link generators, and set up chalk/ora formatting helpers.
+- Implement Phases 0-3: Setup, token provisioning, operator init, agent registration, customer account: Build the first four demo phases covering keypair generation, SOL airdrop, mock USDC mint/ATA creation, operator initialization, agent package registration, and customer account creation.
+- Implement Phases 4-7: Deposit, three settlement scenarios with colored split output: Build the deposit phase and three distinct settlement scenarios demonstrating quality-met with agent split, quality-not-met protection, and default agent (no split), with rich colored console output.
+- Implement Phases 8-9: On-chain verification table, withdrawal, final summary, and error handling: Build the receipt verification phase with formatted table output, customer withdrawal with final summary, global error handling, and wire all phases together in the main entry point.
 </subtasks>

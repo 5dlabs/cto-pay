@@ -1,13 +1,18 @@
-## Acceptance Criteria for Task 2
+## Acceptance Criteria
 
-1. Run `anchor build` — compiles with zero warnings under `clippy::pedantic`.
-2. Verify IDL generation: `target/idl/cto_pay.json` exists and contains `initialize_operator` instruction with `protocol_fee_bps` arg.
-3. Verify all 3 account types appear in IDL with correct field names and types.
-4. Verify `TaskReceipt` uses `task_id_hash` as `[u8; 32]`, NOT a String field.
-5. Verify `OperatorConfig` contains `mint: Pubkey` field.
-6. Verify error codes appear in IDL.
-7. Unit test: `OperatorConfig::INIT_SPACE` matches manual size calculation (100).
-8. Unit test: `CustomerBalance::INIT_SPACE` matches manual calculation (105).
-9. Unit test: `TaskReceipt::INIT_SPACE` matches manual calculation (154).
+- [ ] Run `anchor build` — zero errors. Write and run targeted unit-level tests for the settle_task instruction covering all three cases:
+- [ ] (1) Settle with no agent package: deposit 100 USDC, settle task for 10 USDC, verify customer balance is 90, treasury received 10, TaskReceipt shows amount=10, author_earned=0.
+- [ ] (2) Settle with agent package, quality_met=true, split_bps=3000 (30%): deposit 100, settle for 10, verify author_ata received 3 USDC, treasury received 7 USDC, customer balance is 90, AgentPackage.total_earned=3, success_count=1.
+- [ ] (3) Settle with agent package, quality_met=false: deposit 100, settle, verify customer balance remains 100, no transfers, TaskReceipt.amount=0, AgentPackage.task_count incremented but success_count unchanged.
+- [ ] (4) Refund: settle a task, then refund it, verify customer balance restored, TaskReceipt.status=Refunded.
+- [ ] (5) Cap enforcement: set max_per_task=5, attempt settle for 10 → ExceedsPerTaskCap error.
+- [ ] (6) Daily cap: set max_per_day=15, settle 10, then settle 10 → ExceedsDailyCap error.
+- [ ] (7) Paused: pause program, attempt settle → ProgramPaused error.
+- [ ] (8) Duplicate task_id: settle task 'CTO-001', attempt second settle with same task_id → error (PDA already exists).
+- [ ] All 8 tests pass on local validator within 30 seconds.
 
-_Generated from task metadata (LLM fallback)._
+## Verification Notes
+
+- [ ] Confirm dependencies are satisfied before implementation.
+- [ ] Update tests, docs, and configuration touched by this task.
+- [ ] Validate the final behavior against the task objective.

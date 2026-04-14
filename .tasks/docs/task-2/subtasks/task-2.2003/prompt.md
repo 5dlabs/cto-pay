@@ -4,74 +4,34 @@ You are rex working on subtask 2003 of task 2.
 
 <context>
 <scope>
-Create the initialize_operator instruction handler and its Accounts struct, including vault token account initialization via anchor_spl, protocol_fee_bps validation, and OperatorConfig PDA initialization.
+Implement Case 2 (quality_met=true with split payment to author and treasury) and Case 3 (quality_met=false with zero charge and no transfers) in the settle_task handler.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `programs/cto-pay/src/instructions/mod.rs` re-exporting `initialize_operator`.
-2. Create `programs/cto-pay/src/instructions/initialize_operator.rs`:
-3. Define the `InitializeOperator` Accounts struct:
-   ```rust
-   #[derive(Accounts)]
-   pub struct InitializeOperator<'info> {
-       #[account(mut)]
-       pub authority: Signer<'info>,
-       
-       #[account(
-           init,
-           payer = authority,
-           space = 8 + OperatorConfig::INIT_SPACE,
-           seeds = [OPERATOR_CONFIG_SEED],
-           bump,
-       )]
-       pub operator_config: Account<'info, OperatorConfig>,
-       
-       #[account(
-           init,
-           payer = authority,
-           seeds = [VAULT_SEED, operator_config.key().as_ref()],
-           bump,
-           token::mint = mint,
-           token::authority = operator_config,
-       )]
-       pub vault: Account<'info, TokenAccount>,
-       
-       pub mint: Account<'info, Mint>,
-       
-       /// CHECK: Validated as token account with correct mint
-       #[account(
-           constraint = treasury.mint == mint.key() @ CtoPayError::InvalidMint,
-       )]
-       pub treasury: Account<'info, TokenAccount>,
-       
-       pub system_program: Program<'info, System>,
-       pub token_program: Program<'info, Token>,
-       pub rent: Sysvar<'info, Rent>,
-   }
-   ```
-4. Implement the handler function:
-   ```rust
-   pub fn handler(ctx: Context<InitializeOperator>, protocol_fee_bps: u16) -> Result<()> {
-       require!(protocol_fee_bps <= 10_000, CtoPayError::InvalidFeeBps);
-       
-       let config = &mut ctx.accounts.operator_config;
-       config.authority = ctx.accounts.authority.key();
-       config.treasury = ctx.accounts.treasury.key();
-       config.mint = ctx.accounts.mint.key();
-       config.protocol_fee_bps = protocol_fee_bps;
-       config.paused = false;
-       config.bump = ctx.bumps.operator_config;
-       
-       Ok(())
-   }
-   ```
-5. Use `anchor_spl::token::{Token, TokenAccount, Mint}` imports.
-6. Ensure NO use of `init_if_needed` — only `init`.
-7. Ensure the vault token account authority is the `operator_config` PDA (the program can sign for it via PDA seeds in future transfer instructions).
-8. Add appropriate `use` statements for constants, errors, and state types.
+1. In the settle_task handler (or settle_task_with_package variant), implement Case 2 (quality_met == true):
+   a. Validate agent_package.active == true → error PackageInactive.
+   b. Compute author_amount = (amount * agent_package.split_bps as u64) / 10000.
+   c. Compute treasury_amount = amount - author_amount.
+   d. Debit customer_balance.balance -= amount.
+   e. SPL token transfer CPI: transfer `author_amount` from vault to author_ata using PDA signer seeds.
+   f. SPL token transfer CPI: transfer `treasury_amount` from vault to treasury_ata using PDA signer seeds.
+   g. Update agent_package: total_earned += author_amount, task_count += 1, success_count += 1.
+   h. Write TaskReceipt: amount=amount, author_earned=author_amount, quality_met=true, agent_package=Some(agent_package.key()).
+   i. Update customer counters: daily_spent += amount, total_spent += amount, task_count += 1.
+
+2. Implement Case 3 (quality_met == false):
+   a. No debit from customer balance (charged amount = 0).
+   b. No token transfers.
+   c. Update agent_package: task_count += 1 (success_count unchanged).
+   d. Write TaskReceipt: amount=0, author_earned=0, quality_met=false, agent_package=Some(agent_package.key()), receipt_hash=args.receipt_hash, status=Settled.
+   e. Update customer counters: daily_spent += 0, total_spent += 0, task_count += 1.
+
+3. Handle the branching: if agent_package is provided (Some), check quality_met to branch between Case 2 and Case 3. If agent_package is None, use Case 1 logic (already implemented).
+
+4. Ensure the vault PDA signer seeds are reused correctly across both transfer CPIs in Case 2.
 </implementation_plan>
 
 <validation>
-Run `anchor build` — compiles with zero errors and zero warnings under clippy::pedantic. Verify IDL contains `initialize_operator` instruction with `protocol_fee_bps: u16` argument. Verify IDL accounts list includes `authority`, `operatorConfig`, `vault`, `mint`, `treasury`, `systemProgram`, `tokenProgram`, `rent`. Verify vault account in IDL shows it is a token account type.
+Run `anchor build` — compiles. Test Case 2: deposit 100 USDC, register agent package with split_bps=3000, settle 10 USDC with quality_met=true. Verify author_ata received 3, treasury received 7, customer balance is 90, AgentPackage.total_earned=3, success_count=1. Test Case 3: deposit 100 USDC, settle with quality_met=false. Verify customer balance remains 100, no transfers, TaskReceipt.amount=0, AgentPackage.task_count incremented but success_count unchanged.
 </validation>

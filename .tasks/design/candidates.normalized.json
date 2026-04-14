@@ -1,0 +1,14 @@
+[
+  {
+    "provider": "stitch",
+    "target": "web",
+    "deviceType": "DESKTOP",
+    "screenId": "5f13e1aeef0a4fb5b858250e98451a07",
+    "htmlUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sX2JjYmQ1OWVjOGQ0OTQ0NmRiYTQ4ZmZkM2E3MGYyNjNlEgsSBxD0x7nTwxwYAZIBJAoKcHJvamVjdF9pZBIWQhQxNTUwODE0NjE5OTExNTU3MDY2OA&filename=&opi=96797242",
+    "imageUrl": "https://lh3.googleusercontent.com/aida/ADBb0ujrf05SzVEv09mfuiMN1Z3h1RR79YHOIxQycqjOTJYE2OpAPQmXa3NqqNxKyjrbmvzmcW-ubrXqSd9KBOcSR-2Ny4sF6VKEMSOETKeET0ZDvuQmsCeMhm8gJ0lclOXjOWbvzk4-CylnKYxGIQtRmkS3oGWI2Z69iFFvnN8QOZIrbPxtWvZa_PDXFgelIhMWkZL9m6EPhPPO6lMdjwm6IZqO0AeuJ7hw4l8qblcjlAAX_TDxfVFJ9-TWZIAk",
+    "rationale": "Generated web modernization candidate from intake design context.",
+    "prompt": "Improve and modernize this web interface for project cto-pay. Return production-ready UI structure with clear hierarchy, accessibility, and conversion-focused layout.",
+    "status": "generated",
+    "candidate_id": "stitch-web-1"
+  }
+]

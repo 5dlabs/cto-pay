@@ -4,14 +4,38 @@ You are rex working on subtask 4001 of task 4.
 
 <context>
 <scope>
-Create the settle_task instruction — the most complex instruction in the program — with a strict 5-step validation chain (pause, zero amount, per-task cap, daily cap with slot-based reset, balance check), fee computation using multiply-first-then-divide, SPL CPI transfer from vault to treasury, CustomerBalance state updates, and TaskReceipt PDA initialization.
+Add the solana-billing feature flag to the controller Cargo.toml with optional dependencies, create the SolanaBillingConfig struct, and add the customer_solana_pubkey field to the customer profile or CodeRun annotation type.
 </scope>
 </context>
 
 <implementation_plan>
-Create `instructions/settle_task.rs`. Define the `SettleTask` Anchor accounts struct with: `operator` (Signer), `operator_config` (has_one = authority, ensuring operator == authority), `customer_balance` (mut), `task_receipt` (init, PDA seeded by `[TASK_RECEIPT_SEED, &task_id_hash]`, space = 8 + TaskReceipt size), `vault` (mut, Account<TokenAccount>), `treasury` (mut, Account<TokenAccount>, constraint `treasury.mint == operator_config.mint @ CtoPayError::InvalidMint`), `vault_authority` (PDA seeds = `[VAULT_SEED, operator_config.key().as_ref()]`), `token_program`, `system_program`. Note: `task_id_hash` is needed for PDA derivation, so use `#[instruction(task_id_hash: [u8; 32])]` attribute on the accounts struct. Handler args: `task_id_hash: [u8; 32]`, `amount: u64`, `receipt_hash: [u8; 32]`. Implement validation in strict order: (a) `!operator_config.paused` → ProgramPaused; (b) `amount > 0` → ZeroAmount; (c) `amount <= customer_balance.max_per_task` → SpendingCapPerTaskExceeded; (d) daily reset: `let clock = Clock::get()?; if clock.slot >= customer_balance.daily_reset_slot.checked_add(SLOTS_PER_DAY).ok_or(ArithmeticOverflow)? { customer_balance.daily_spent = 0; customer_balance.daily_reset_slot = clock.slot; }` where `SLOTS_PER_DAY = 216_000`; (e) `customer_balance.daily_spent.checked_add(amount).ok_or(ArithmeticOverflow)? <= customer_balance.max_per_day` → SpendingCapDailyExceeded; (f) `customer_balance.balance >= amount` → InsufficientBalance. Compute fee: `fee_amount = amount.checked_mul(u64::from(operator_config.protocol_fee_bps)).ok_or(ArithmeticOverflow)?.checked_div(10_000).ok_or(ArithmeticOverflow)?`. SPL CPI transfer: vault → treasury, full `amount`, signed by vault PDA authority seeds. Update CustomerBalance: `balance = balance.checked_sub(amount)?`, `total_spent = total_spent.checked_add(amount)?`, `task_count = task_count.checked_add(1)?`, `daily_spent = daily_spent.checked_add(amount)?`. Initialize TaskReceipt: task_id_hash, customer = customer_balance.customer, amount, fee_amount, receipt_hash, operator = operator.key(), settled_at = clock.unix_timestamp, status = TaskStatus::Settled, bump from ctx.bumps. Export from `instructions/mod.rs`.
+1. Edit `crates/controller/Cargo.toml`:
+   - Add feature section: `[features]` with `solana-billing = ["dep:redis", "dep:serde_json", "dep:sha2"]`.
+   - Add optional dependencies: `redis = { version = "0.25", features = ["tokio-comp", "streams"], optional = true }`, `sha2 = { version = "0.10", optional = true }`. Note: serde_json likely already exists as a non-optional dep; if so, don't duplicate.
+   - Verify the feature defaults to false (not in `default = [...]`).
+
+2. Create `crates/controller/src/billing/mod.rs` with `#[cfg(feature = "solana-billing")]` gating the entire module. Add `pub mod event; pub mod receipt; pub mod publisher;` declarations (files created in subsequent subtasks).
+
+3. Add `#[cfg(feature = "solana-billing")] pub mod billing;` to the controller's `lib.rs` or `main.rs`.
+
+4. Create `SolanaBillingConfig` in `crates/controller/src/tasks/config.rs` (or `billing/config.rs`):
+   ```rust
+   #[cfg(feature = "solana-billing")]
+   #[derive(Clone, Debug, Deserialize)]
+   pub struct SolanaBillingConfig {
+       pub redis_url: String,
+       pub receipt_s3_bucket: String,
+       pub receipt_s3_prefix: String,
+       pub enabled: bool,
+   }
+   ```
+   Add this as an optional field on the main controller config struct, gated behind the feature.
+
+5. Add `customer_solana_pubkey: Option<String>` to the relevant customer profile type or as a recognized CodeRun annotation key (e.g., `cto.ai/customer-solana-pubkey`). This is a simple String for the hackathon.
+
+6. Verify: `cargo build` (no feature) compiles cleanly. `cargo build --features solana-billing` compiles (will have unused module warnings until schemas are added, which is fine).
 </implementation_plan>
 
 <validation>
-Verify `anchor build` compiles. IDL contains `settle_task` with args: task_id_hash ([u8; 32]), amount (u64), receipt_hash ([u8; 32]). Code review: validation chain executes in exact order — pause, zero amount, per-task cap, daily reset + daily cap, balance. Code review: SLOTS_PER_DAY = 216_000. Code review: fee computation is `amount * bps / 10000` (multiply first) with checked arithmetic. Code review: TaskReceipt PDA seed is `[TASK_RECEIPT_SEED, &task_id_hash]`. Code review: all u64 operations use checked_* methods.
+Run `cargo build` without features — compiles with zero errors and no references to redis/sha2. Run `cargo build --features solana-billing` — compiles (warnings acceptable for empty modules). Verify `solana-billing` is not in the default features list. Grep the built binary or check cargo output to confirm optional deps are only included with the feature.
 </validation>
