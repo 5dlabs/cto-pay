@@ -1,12 +1,12 @@
 {
   "kind": "architecture-deliberation",
   "sessionId": "cto-pay-1776121773",
-  "generatedAt": "2026-04-13T23:15:48Z",
+  "generatedAt": "2026-04-14T07:25:03.664Z",
   "segments": [
     {
       "speaker": "narrator",
       "label": "Architecture Deliberation",
-      "text": "Architecture deliberation for session cto-pay-1776121773. 0 decision points were considered."
+      "text": "Architecture deliberation for session cto-pay-1776121773. 11 decision points were considered across 8 architectural categories."
     },
     {
       "speaker": "optimist",
@@ -21,7 +21,7 @@
     {
       "speaker": "compiler",
       "label": "Resolution Summary",
-      "text": "Deliberation complete. Status: completed. Resolved 0 of 0 decisions. No decisions were resolved."
+      "text": "Deliberation complete. Status: completed. Resolved 11 of 11 decisions. Key decisions covered platform choice, build versus buy, language runtime, and service topology."
     }
   ]
 }
