@@ -1,0 +1,42 @@
+{
+  "projectName": "cto-pay",
+  "mode": "ingest",
+  "providerMode": "stitch",
+  "prompt": "",
+  "hasFrontend": false,
+  "frontendTargets": [],
+  "confidence": 0,
+  "evidence": [],
+  "urls": [],
+  "providers": {
+    "stitch": {
+      "status": "failed",
+      "reason": "design_intake_failed",
+      "warnings": [
+        "intake-agent design_intake failed"
+      ],
+      "candidates": []
+    },
+    "framer": {
+      "status": "skipped",
+      "reason": "not_requested",
+      "warnings": [],
+      "candidates": []
+    }
+  },
+  "stitch": {
+    "status": "failed",
+    "reason": "design_intake_failed",
+    "warnings": [
+      "intake-agent design_intake failed"
+    ],
+    "candidates": []
+  },
+  "framer": {
+    "status": "skipped",
+    "reason": "not_requested",
+    "warnings": [],
+    "candidates": []
+  },
+  "normalized_candidates": []
+}
