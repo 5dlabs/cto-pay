@@ -178,70 +178,43 @@
   </div>
 
   <script>
-    const REPO = '5dlabs/cto-pay';
+    const AUDIO_FILES = [
+      {
+        name: 'architecture-deliberation',
+        mp3: 'audio/architecture-deliberation.mp3',
+        transcript: 'audio/architecture-deliberation.transcript.json'
+      }
+    ];
 
-    async function loadReleases() {
+    async function loadAudio() {
       const loading = document.getElementById('loading');
       const errorEl = document.getElementById('error');
       const playersEl = document.getElementById('players');
 
-      try {
-        const res = await fetch(`https://api.github.com/repos/${REPO}/releases`, {
-          headers: { 'Accept': 'application/vnd.github+json' }
-        });
-        if (!res.ok) throw new Error(`GitHub API ${res.status}`);
-        const releases = await res.json();
+      loading.style.display = 'none';
 
-        const audioReleases = releases.filter(r =>
-          r.assets.some(a => a.name.endsWith('.mp3') || a.name.endsWith('.transcript.json'))
-        );
+      for (const file of AUDIO_FILES) {
+        const name = file.name.replace(/-/g, ' ');
 
-        if (audioReleases.length === 0) {
-          loading.textContent = 'No deliberation audio releases found yet.';
-          return;
+        const card = document.createElement('div');
+        card.className = 'player-card';
+        card.innerHTML = `
+          <div class="player-header">
+            <span class="player-icon">🔊</span>
+            <span class="player-title">${capitalize(name)}</span>
+          </div>
+          <div class="player-meta">CTO Pay — Morgan intake pipeline</div>
+          <audio controls preload="metadata" src="${file.mp3}"></audio>
+        `;
+        playersEl.appendChild(card);
+
+        if (file.transcript) {
+          await renderTranscript(playersEl, file.transcript, file.name);
         }
-
-        loading.style.display = 'none';
-
-        for (const release of audioReleases) {
-          const mp3s = release.assets.filter(a => a.name.endsWith('.mp3'));
-          const transcripts = release.assets.filter(a => a.name.endsWith('.transcript.json'));
-
-          for (const mp3 of mp3s) {
-            const card = document.createElement('div');
-            card.className = 'player-card';
-
-            const name = mp3.name.replace('.mp3', '').replace(/-/g, ' ');
-            const sizeMB = (mp3.size / 1024 / 1024).toFixed(1);
-            const date = new Date(release.created_at).toLocaleDateString('en-US', {
-              year: 'numeric', month: 'short', day: 'numeric'
-            });
-
-            card.innerHTML = `
-              <div class="player-header">
-                <span class="player-icon">🔊</span>
-                <span class="player-title">${capitalize(name)}</span>
-                <span class="badge">${sizeMB} MB</span>
-              </div>
-              <div class="player-meta">${release.name} · ${date}</div>
-              <audio controls preload="metadata" src="${mp3.browser_download_url}"></audio>
-            `;
-            playersEl.appendChild(card);
-          }
-
-          for (const t of transcripts) {
-            const baseName = t.name.replace('.transcript.json', '');
-            await renderTranscript(playersEl, t.browser_download_url, baseName, release.name);
-          }
-        }
-      } catch (err) {
-        loading.style.display = 'none';
-        errorEl.style.display = 'block';
-        errorEl.textContent = `Failed to load releases: ${err.message}. This page works with public repos or when authenticated.`;
       }
     }
 
-    async function renderTranscript(container, url, baseName, releaseName) {
+    async function renderTranscript(container, url, baseName) {
       try {
         const res = await fetch(url);
         if (!res.ok) return;
@@ -288,7 +261,7 @@
       return div.innerHTML;
     }
 
-    loadReleases();
+    loadAudio();
   </script>
 </body>
 </html>
