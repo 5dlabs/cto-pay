@@ -55,6 +55,24 @@ for usage-based charges.
 - Produce a Solana program that can be extended post-hackathon into a
   production billing layer with a growing ecosystem of third-party skills.
 
+## 3a. Design principles
+
+- **Decentralized-first.** When choosing between a centralized and a
+  decentralized approach for any component, prefer the decentralized option
+  unless it makes the hackathon demo technically infeasible. This applies to
+  storage (Arweave / IPFS over S3 / SeaweedFS), identity (wallet-based over
+  OAuth), data availability (on-chain or permanent storage over ephemeral
+  databases), and coordination (program-enforced splits over off-chain
+  accounting). A Solana hackathon rewards on-chain-native thinking; leaning
+  into decentralized infrastructure earns credibility with judges and aligns
+  with the long-term architecture.
+- **Verifiable by default.** Every economic event should produce an
+  independently verifiable artifact — an on-chain transaction, a content-
+  addressed receipt, or a signed attestation.
+- **Composable over monolithic.** Prefer small, well-defined instructions that
+  external programs and clients can compose, over large instructions that
+  internalize workflow logic.
+
 ## 4. Non-goals (for the hackathon)
 
 - NFT-based authorship tokens or receipt tokens.
@@ -141,7 +159,8 @@ instruction to the program with:
 - `customer` — customer's pubkey (linked via CTO profile).
 - `amount` — the billable amount in USDC.
 - `receipt_hash` — hash of a JSON receipt blob stored off-chain (Arweave
-  or S3) containing the itemized breakdown.
+  via Irys/Bundlr — preferred per §3a decentralized-first principle)
+  containing the itemized breakdown.
 - `skill_author` — (optional) pubkey of the public agent author, if a
   third-party skill was used.
 - `author_split_bps` — (optional) basis points for the author's share
@@ -407,7 +426,8 @@ transitions to a terminal state (merged / failed / cancelled), the
 controller:
 
 1. Computes the billable amount from pod duration + infra tier.
-2. Builds the itemized receipt JSON and uploads to off-chain storage.
+2. Builds the itemized receipt JSON and uploads to Arweave via Irys
+   (content-addressed, permanent, decentralized — per §3a).
 3. Hashes the receipt.
 4. Submits a `settle_task` (or `refund_task` on failure) instruction to
    the Solana program.
