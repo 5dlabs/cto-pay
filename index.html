@@ -3,265 +3,1469 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CTO Pay — Deliberation Audio</title>
+  <title>CTO Pay — Architecture Deliberation</title>
+  <meta name="description" content="On-Chain Usage-Based Payments for the CTO Platform. Listen to the AI architecture deliberation covering 11 decision points.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #050505;
+      --surface: rgba(255,255,255,0.03);
+      --surface-hover: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.14);
+      --text-primary: rgba(255,255,255,0.92);
+      --text-secondary: rgba(255,255,255,0.55);
+      --text-muted: rgba(255,255,255,0.32);
+      --narrator: #a0a0b0;
+      --optimist: #34d399;
+      --pessimist: #fb923c;
+      --compiler: #38bdf8;
+      --cat-platform-choice: #a78bfa;
+      --cat-architecture: #34d399;
+      --cat-data-model: #60a5fa;
+      --cat-api-design: #22d3ee;
+      --cat-security: #f87171;
+      --cat-build-vs-buy: #fbbf24;
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+      --font-display: 'Space Grotesk', -apple-system, system-ui, sans-serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      overflow-x: hidden;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem 1rem;
     }
-    .container { max-width: 720px; width: 100%; }
-    header {
-      text-align: center;
-      margin-bottom: 2rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid #30363d;
+
+    ::selection {
+      background: rgba(139, 92, 246, 0.35);
+      color: #fff;
     }
-    h1 {
-      font-size: 1.8rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
+
+    .page-wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 clamp(20px, 5vw, 48px);
     }
-    h1 span { color: #58a6ff; }
-    .subtitle {
-      color: #8b949e;
-      font-size: 0.95rem;
-    }
-    .player-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-    .player-header {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-    }
-    .player-icon { font-size: 1.5rem; }
-    .player-title { font-size: 1.1rem; font-weight: 600; }
-    .player-meta {
-      color: #8b949e;
-      font-size: 0.85rem;
-      margin-bottom: 1rem;
-    }
-    audio {
-      width: 100%;
-      height: 48px;
-      border-radius: 8px;
-      outline: none;
-    }
-    audio::-webkit-media-controls-panel { background: #21262d; }
-    .transcript-section {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
+
+    /* AMBIENT BACKGROUND */
+    .ambient-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
       overflow: hidden;
     }
-    .transcript-toggle {
-      width: 100%;
-      background: none;
-      border: none;
-      color: #e6edf3;
-      padding: 1rem 1.5rem;
-      font-size: 1rem;
+
+    .ambient-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.35;
+      will-change: transform;
+    }
+
+    .ambient-orb--purple {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.4), transparent 70%);
+      top: -10%; left: -5%;
+      animation: orb-drift-1 25s ease-in-out infinite alternate;
+    }
+
+    .ambient-orb--emerald {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(52, 211, 153, 0.3), transparent 70%);
+      top: 30%; right: -10%;
+      animation: orb-drift-2 30s ease-in-out infinite alternate;
+    }
+
+    .ambient-orb--blue {
+      width: 450px; height: 450px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.2), transparent 70%);
+      bottom: 10%; left: 20%;
+      animation: orb-drift-3 22s ease-in-out infinite alternate;
+    }
+
+    @keyframes orb-drift-1 {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(80px, 60px) scale(1.15); }
+    }
+    @keyframes orb-drift-2 {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(-60px, -80px) scale(1.1); }
+    }
+    @keyframes orb-drift-3 {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(50px, -40px) scale(1.2); }
+    }
+
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px 256px;
+    }
+
+    .section { position: relative; z-index: 2; }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.9s var(--ease-out-expo), transform 0.9s var(--ease-out-expo);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* HERO */
+    .hero {
+      padding: clamp(100px, 18vh, 200px) 0 clamp(60px, 10vh, 120px);
+      text-align: center;
+      position: relative;
+    }
+
+    .hero__badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 100px;
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      font-family: var(--font-display);
+      font-size: 11px;
       font-weight: 600;
-      cursor: pointer;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(167, 139, 250, 0.9);
+      margin-bottom: 32px;
+    }
+
+    .hero__badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #a78bfa;
+      box-shadow: 0 0 8px rgba(167, 139, 250, 0.6);
+      animation: pulse-dot 2.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    .hero__title {
+      font-family: var(--font-display);
+      font-size: clamp(56px, 10vw, 120px);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 0.92;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 50%, rgba(167,139,250,0.8) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero__subtitle {
+      font-family: var(--font-body);
+      font-size: clamp(16px, 2.2vw, 22px);
+      font-weight: 400;
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    .hero__orb {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -55%);
+      width: clamp(300px, 50vw, 600px);
+      height: clamp(300px, 50vw, 600px);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(52, 211, 153, 0.05) 50%, transparent 70%);
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: -1;
+      animation: hero-orb-breathe 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes hero-orb-breathe {
+      from { transform: translate(-50%, -55%) scale(1); opacity: 0.6; }
+      to { transform: translate(-50%, -55%) scale(1.12); opacity: 0.9; }
+    }
+
+    /* GLASS CARD */
+    .glass-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+    }
+
+    /* AUDIO PLAYER */
+    .player-section { padding-bottom: clamp(60px, 8vh, 100px); }
+
+    .player {
+      padding: clamp(24px, 4vw, 40px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .player__inner-glow {
+      position: absolute;
+      top: -40%; left: 50%;
+      transform: translateX(-50%);
+      width: 70%; height: 80%;
+      background: radial-gradient(ellipse, rgba(139, 92, 246, 0.06), transparent 70%);
+      pointer-events: none;
+    }
+
+    .player__header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-family: inherit;
+      margin-bottom: 28px;
+      position: relative;
     }
-    .transcript-toggle:hover { background: #1c2128; }
-    .transcript-toggle .arrow { transition: transform 0.2s; }
-    .transcript-toggle.open .arrow { transform: rotate(90deg); }
-    .transcript-body {
-      display: none;
-      padding: 0 1.5rem 1.5rem;
-      max-height: 60vh;
-      overflow-y: auto;
-    }
-    .transcript-body.open { display: block; }
-    .segment {
-      margin-bottom: 1.25rem;
-      padding-left: 1rem;
-      border-left: 3px solid #30363d;
-    }
-    .segment.narrator { border-left-color: #8b949e; }
-    .segment.designer { border-left-color: #58a6ff; }
-    .segment.compiler { border-left-color: #3fb950; }
-    .segment.architect { border-left-color: #d29922; }
-    .segment.optimist { border-left-color: #f0883e; }
-    .segment.pessimist { border-left-color: #f85149; }
-    .segment-speaker {
-      font-weight: 600;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.35rem;
-    }
-    .narrator .segment-speaker { color: #8b949e; }
-    .designer .segment-speaker { color: #58a6ff; }
-    .compiler .segment-speaker { color: #3fb950; }
-    .architect .segment-speaker { color: #d29922; }
-    .optimist .segment-speaker { color: #f0883e; }
-    .pessimist .segment-speaker { color: #f85149; }
-    .segment-text {
-      color: #c9d1d9;
-      font-size: 0.9rem;
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
-    .links {
-      text-align: center;
-      margin-top: 1.5rem;
-      padding-top: 1rem;
-      border-top: 1px solid #30363d;
-    }
-    .links a {
-      color: #58a6ff;
-      text-decoration: none;
-      font-size: 0.9rem;
-      margin: 0 0.75rem;
-    }
-    .links a:hover { text-decoration: underline; }
-    .badge {
-      display: inline-block;
-      background: #1f6feb22;
-      color: #58a6ff;
-      padding: 0.2rem 0.6rem;
-      border-radius: 20px;
-      font-size: 0.75rem;
+
+    .player__speaker-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 13px;
       font-weight: 500;
-      margin-left: 0.5rem;
+      color: var(--text-secondary);
+      padding: 5px 14px;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: all 0.5s var(--ease-out-expo);
     }
-    #loading {
+
+    .player__speaker-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--narrator);
+      transition: background 0.5s var(--ease-out-expo), box-shadow 0.5s var(--ease-out-expo);
+    }
+
+    .player__speaker-tag[data-speaker="narrator"] .player__speaker-dot { background: var(--narrator); box-shadow: 0 0 8px rgba(160,160,176,0.4); }
+    .player__speaker-tag[data-speaker="optimist"] .player__speaker-dot { background: var(--optimist); box-shadow: 0 0 8px rgba(52,211,153,0.5); }
+    .player__speaker-tag[data-speaker="pessimist"] .player__speaker-dot { background: var(--pessimist); box-shadow: 0 0 8px rgba(251,146,60,0.5); }
+    .player__speaker-tag[data-speaker="compiler"] .player__speaker-dot { background: var(--compiler); box-shadow: 0 0 8px rgba(56,189,248,0.5); }
+
+    .player__time {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .player__controls {
+      display: flex;
+      align-items: center;
+      gap: clamp(16px, 3vw, 32px);
+      justify-content: center;
+      margin-bottom: 28px;
+      position: relative;
+    }
+
+    .player__play-btn {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(52, 211, 153, 0.2));
+      border: 1px solid rgba(255,255,255,0.15);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.4s var(--ease-out-expo), box-shadow 0.4s var(--ease-out-expo), background 0.4s var(--ease-out-expo);
+      flex-shrink: 0;
+    }
+
+    .player__play-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 40px rgba(139, 92, 246, 0.25), 0 0 80px rgba(139, 92, 246, 0.1);
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.45), rgba(52, 211, 153, 0.3));
+    }
+
+    .player__play-btn:active { transform: scale(0.96); }
+
+    .player__play-btn svg {
+      width: 22px; height: 22px;
+      fill: #fff;
+      transition: opacity 0.3s var(--ease-out-expo);
+    }
+
+    .player__skip-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s var(--ease-out-expo), background 0.3s var(--ease-out-expo);
+      flex-shrink: 0;
+    }
+
+    .player__skip-btn:hover { background: rgba(255,255,255,0.08); transform: scale(1.06); }
+    .player__skip-btn svg { width: 16px; height: 16px; fill: var(--text-secondary); }
+
+    .player__eq {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 24px;
+      opacity: 0;
+      transition: opacity 0.5s var(--ease-out-expo);
+    }
+    .player__eq.active { opacity: 1; }
+
+    .player__eq-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: linear-gradient(to top, var(--optimist), rgba(139, 92, 246, 0.8));
+      animation: eq-bounce 0.6s ease-in-out infinite alternate;
+      transform-origin: bottom;
+    }
+    .player__eq-bar:nth-child(1) { height: 8px; animation-delay: 0s; }
+    .player__eq-bar:nth-child(2) { height: 16px; animation-delay: 0.15s; }
+    .player__eq-bar:nth-child(3) { height: 10px; animation-delay: 0.3s; }
+    .player__eq-bar:nth-child(4) { height: 20px; animation-delay: 0.1s; }
+    .player__eq-bar:nth-child(5) { height: 12px; animation-delay: 0.25s; }
+    .player__eq:not(.active) .player__eq-bar { animation-play-state: paused; }
+
+    @keyframes eq-bounce {
+      from { transform: scaleY(0.3); }
+      to { transform: scaleY(1); }
+    }
+
+    .player__progress-wrap {
+      position: relative;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 16px;
+    }
+
+    .player__progress-track {
+      width: 100%;
+      height: 4px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.08);
+      overflow: visible;
+      position: relative;
+      transition: height 0.3s var(--ease-out-expo);
+    }
+
+    .player__progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--optimist), #a78bfa);
+      width: 0%;
+      position: relative;
+      transition: width 0.1s linear;
+    }
+
+    .player__progress-thumb {
+      position: absolute;
+      right: -7px; top: 50%;
+      transform: translateY(-50%) scale(0);
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 12px rgba(167, 139, 250, 0.5);
+      transition: transform 0.3s var(--ease-out-expo);
+    }
+
+    .player__progress-wrap:hover .player__progress-thumb { transform: translateY(-50%) scale(1); }
+    .player__progress-wrap:hover .player__progress-track { height: 6px; }
+
+    .player__progress-hover-time {
+      position: absolute;
+      top: -28px;
+      background: rgba(0,0,0,0.8);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-family: var(--font-display);
+      font-size: 11px;
+      color: var(--text-secondary);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s var(--ease-out-expo);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .player__progress-wrap:hover .player__progress-hover-time { opacity: 1; }
+
+    .player__volume {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .player__volume-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 4px;
+    }
+    .player__volume-btn svg { width: 18px; height: 18px; fill: var(--text-muted); transition: fill 0.3s var(--ease-out-expo); }
+    .player__volume-btn:hover svg { fill: var(--text-secondary); }
+
+    .player__volume-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px; height: 4px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.1);
+      outline: none;
+      cursor: pointer;
+    }
+    .player__volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(255,255,255,0.2);
+    }
+
+    .player__bottom-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* TRANSCRIPT */
+    .transcript-section { padding-bottom: clamp(60px, 8vh, 100px); }
+
+    .section__label {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .section__title {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      margin-bottom: clamp(28px, 4vw, 48px);
+      color: var(--text-primary);
+    }
+
+    .transcript-container {
+      max-height: 600px;
+      overflow-y: auto;
+      border-radius: 20px;
+      padding: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+    .transcript-container::-webkit-scrollbar { width: 6px; }
+    .transcript-container::-webkit-scrollbar-track { background: transparent; }
+    .transcript-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+    .transcript-seg {
+      padding: clamp(16px, 2vw, 24px);
+      border-radius: 16px;
+      margin-bottom: 8px;
+      border: 1px solid transparent;
+      transition: all 0.5s var(--ease-out-expo);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .transcript-seg::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 12px; bottom: 12px;
+      width: 3px;
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity 0.5s var(--ease-out-expo);
+    }
+
+    .transcript-seg.active { background: rgba(255,255,255,0.03); border-color: var(--border); }
+    .transcript-seg.active::before { opacity: 1; }
+
+    .transcript-seg[data-speaker="narrator"]::before { background: var(--narrator); }
+    .transcript-seg[data-speaker="optimist"]::before { background: var(--optimist); }
+    .transcript-seg[data-speaker="pessimist"]::before { background: var(--pessimist); }
+    .transcript-seg[data-speaker="compiler"]::before { background: var(--compiler); }
+
+    .transcript-seg__header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+
+    .transcript-seg__avatar {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .transcript-seg[data-speaker="narrator"] .transcript-seg__avatar { background: rgba(160,160,176,0.12); }
+    .transcript-seg[data-speaker="optimist"] .transcript-seg__avatar { background: rgba(52,211,153,0.12); }
+    .transcript-seg[data-speaker="pessimist"] .transcript-seg__avatar { background: rgba(251,146,60,0.12); }
+    .transcript-seg[data-speaker="compiler"] .transcript-seg__avatar { background: rgba(56,189,248,0.12); }
+
+    .transcript-seg__speaker {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .transcript-seg[data-speaker="narrator"] .transcript-seg__speaker { color: var(--narrator); }
+    .transcript-seg[data-speaker="optimist"] .transcript-seg__speaker { color: var(--optimist); }
+    .transcript-seg[data-speaker="pessimist"] .transcript-seg__speaker { color: var(--pessimist); }
+    .transcript-seg[data-speaker="compiler"] .transcript-seg__speaker { color: var(--compiler); }
+
+    .transcript-seg__label { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+
+    .transcript-seg__body {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      overflow: hidden;
+      transition: max-height 0.6s var(--ease-out-expo);
+    }
+
+    .transcript-seg__body.collapsed {
+      max-height: 120px;
+      -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+      mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+    }
+
+    .transcript-seg__body h1, .transcript-seg__body h2, .transcript-seg__body h3 {
+      font-family: var(--font-display);
+      color: var(--text-primary);
+      margin: 20px 0 8px;
+      letter-spacing: -0.02em;
+    }
+    .transcript-seg__body h1 { font-size: 20px; font-weight: 600; }
+    .transcript-seg__body h2 { font-size: 17px; font-weight: 600; }
+    .transcript-seg__body h3 { font-size: 15px; font-weight: 600; }
+    .transcript-seg__body p { margin-bottom: 12px; }
+    .transcript-seg__body strong { color: var(--text-primary); font-weight: 600; }
+    .transcript-seg__body hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .transcript-seg__body ul, .transcript-seg__body ol { padding-left: 20px; margin-bottom: 12px; }
+    .transcript-seg__body li { margin-bottom: 4px; }
+
+    .transcript-seg__body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13px;
+    }
+    .transcript-seg__body table th,
+    .transcript-seg__body table td {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+    .transcript-seg__body table th {
+      background: rgba(255,255,255,0.03);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .transcript-seg__body code {
+      background: rgba(255,255,255,0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.9em;
+    }
+
+    .transcript-seg__toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-family: var(--font-body);
+      transition: color 0.3s var(--ease-out-expo);
+    }
+    .transcript-seg__toggle:hover { color: var(--text-secondary); }
+
+    /* DECISION POINTS */
+    .decisions-section { padding-bottom: clamp(60px, 8vh, 100px); }
+
+    .decisions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    .dp-card {
+      padding: 2px;
+      border-radius: 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition: transform 0.5s var(--ease-out-expo), box-shadow 0.5s var(--ease-out-expo), border-color 0.5s var(--ease-out-expo);
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    .dp-card.visible { opacity: 1; transform: translateY(0); }
+    .dp-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-strong);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.3), 0 0 60px rgba(139, 92, 246, 0.06);
+    }
+
+    .dp-card__inner {
+      padding: clamp(20px, 2.5vw, 28px);
+      border-radius: 20px;
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.04);
+      height: 100%;
+    }
+
+    .dp-card__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+
+    .dp-card__cat {
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .dp-card__cat--platform-choice { color: var(--cat-platform-choice); background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); }
+    .dp-card__cat--architecture { color: var(--cat-architecture); background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); }
+    .dp-card__cat--data-model { color: var(--cat-data-model); background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.2); }
+    .dp-card__cat--api-design { color: var(--cat-api-design); background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.2); }
+    .dp-card__cat--security { color: var(--cat-security); background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.2); }
+    .dp-card__cat--build-vs-buy { color: var(--cat-build-vs-buy); background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); }
+
+    .dp-card__id {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
+    .dp-card__question {
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-primary);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .dp-card__positions { display: flex; flex-direction: column; gap: 12px; }
+
+    .dp-card__pos {
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .dp-card__pos-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .dp-card__pos-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .dp-card__pos--optimist .dp-card__pos-dot { background: var(--optimist); }
+    .dp-card__pos--pessimist .dp-card__pos-dot { background: var(--pessimist); }
+
+    .dp-card__pos-label {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .dp-card__pos--optimist .dp-card__pos-label { color: var(--optimist); }
+    .dp-card__pos--pessimist .dp-card__pos-label { color: var(--pessimist); }
+
+    .dp-card__pos-verdict {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: auto;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .dp-card__pos-verdict--agree { color: var(--optimist); background: rgba(52,211,153,0.1); }
+    .dp-card__pos-verdict--disagree { color: var(--pessimist); background: rgba(251,146,60,0.1); }
+
+    .dp-card__pos-text {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .dp-card:hover .dp-card__pos-text { -webkit-line-clamp: unset; }
+
+    /* STATS */
+    .stats-section { padding-bottom: clamp(60px, 8vh, 100px); }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--border);
+    }
+
+    .stat-cell {
+      background: var(--bg);
+      padding: clamp(24px, 3vw, 40px) clamp(16px, 2vw, 24px);
       text-align: center;
-      color: #8b949e;
-      padding: 2rem;
     }
-    #error {
-      display: none;
-      background: #f8514922;
-      border: 1px solid #f85149;
+
+    .stat-cell__number {
+      font-family: var(--font-display);
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #fff, rgba(255,255,255,0.6));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-cell__label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* FOOTER */
+    .site-footer {
+      padding: clamp(40px, 6vh, 80px) 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .footer__brand {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .footer__brand a {
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: color 0.3s var(--ease-out-expo);
+    }
+    .footer__brand a:hover { color: #a78bfa; }
+
+    .footer__sub { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+
+    .footer__session {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .decisions-grid { grid-template-columns: 1fr; }
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .player__controls { gap: 16px; }
+      .player__play-btn { width: 56px; height: 56px; }
+      .player__volume-slider { width: 60px; }
+      .transcript-container { max-height: 450px; }
+    }
+
+    @media (max-width: 480px) {
+      .player__bottom-row { flex-direction: column; gap: 12px; }
+    }
+
+    .loading-skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.5s ease-in-out infinite;
       border-radius: 8px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      color: #f85149;
+    }
+    @keyframes skeleton-shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>🎧 <span>CTO Pay</span> Deliberation</h1>
-      <p class="subtitle">Architecture deliberation audio — generated by the Morgan intake pipeline</p>
-    </header>
+  <div class="ambient-bg">
+    <div class="ambient-orb ambient-orb--purple"></div>
+    <div class="ambient-orb ambient-orb--emerald"></div>
+    <div class="ambient-orb ambient-orb--blue"></div>
+  </div>
+  <div class="noise-overlay"></div>
 
-    <div id="error"></div>
-    <div id="players"></div>
-    <div id="loading">Loading releases…</div>
+  <div class="page-wrapper">
+    <!-- HERO -->
+    <section class="section hero reveal" id="hero">
+      <div class="hero__orb"></div>
+      <div class="hero__badge">Architecture Deliberation</div>
+      <h1 class="hero__title">CTO Pay</h1>
+      <p class="hero__subtitle">On-Chain Usage-Based Payments for the CTO Platform</p>
+    </section>
 
-    <div class="links">
-      <a href="https://github.com/5dlabs/cto-pay">📦 Repository</a>
-      <a href="https://github.com/5dlabs/cto-pay/pulls">🔀 Pull Requests</a>
-      <a href="https://github.com/5dlabs/cto-pay/releases">📋 All Releases</a>
-    </div>
+    <!-- AUDIO PLAYER -->
+    <section class="section player-section reveal" id="player-section">
+      <div class="player glass-card">
+        <div class="player__inner-glow"></div>
+        <div class="player__header">
+          <div class="player__speaker-tag" data-speaker="narrator" id="playerSpeakerTag">
+            <span class="player__speaker-dot"></span>
+            <span id="playerSpeakerName">Narrator</span>
+          </div>
+          <div class="player__eq" id="playerEq">
+            <div class="player__eq-bar"></div>
+            <div class="player__eq-bar"></div>
+            <div class="player__eq-bar"></div>
+            <div class="player__eq-bar"></div>
+            <div class="player__eq-bar"></div>
+          </div>
+          <span class="player__time" id="playerTime">0:00 / 0:00</span>
+        </div>
+
+        <div class="player__controls">
+          <button class="player__skip-btn" id="skipBack" aria-label="Rewind 15 seconds">
+            <svg viewBox="0 0 24 24"><path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+          </button>
+          <button class="player__play-btn" id="playBtn" aria-label="Play/Pause">
+            <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+          <button class="player__skip-btn" id="skipForward" aria-label="Forward 15 seconds">
+            <svg viewBox="0 0 24 24"><path d="M12.01 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/></svg>
+          </button>
+        </div>
+
+        <div class="player__progress-wrap" id="progressWrap">
+          <div class="player__progress-hover-time" id="progressHoverTime">0:00</div>
+          <div class="player__progress-track">
+            <div class="player__progress-fill" id="progressFill">
+              <div class="player__progress-thumb"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="player__bottom-row">
+          <div></div>
+          <div class="player__volume">
+            <button class="player__volume-btn" id="volumeBtn" aria-label="Toggle mute">
+              <svg id="iconVolume" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+              <svg id="iconMuted" viewBox="0 0 24 24" style="display:none"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+            </button>
+            <input type="range" class="player__volume-slider" id="volumeSlider" min="0" max="1" step="0.01" value="0.8">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRANSCRIPT -->
+    <section class="section transcript-section reveal" id="transcript-section">
+      <p class="section__label">Full Transcript</p>
+      <h2 class="section__title">The Deliberation</h2>
+      <div class="transcript-container glass-card" id="transcriptContainer">
+        <div class="loading-skeleton" style="height:80px;margin:12px;"></div>
+        <div class="loading-skeleton" style="height:120px;margin:12px;"></div>
+        <div class="loading-skeleton" style="height:100px;margin:12px;"></div>
+      </div>
+    </section>
+
+    <!-- DECISION POINTS -->
+    <section class="section decisions-section reveal" id="decisions-section">
+      <p class="section__label">Architectural Choices</p>
+      <h2 class="section__title">11 Decision Points</h2>
+      <div class="decisions-grid" id="decisionsGrid">
+        <div class="loading-skeleton" style="height:300px;border-radius:22px;"></div>
+        <div class="loading-skeleton" style="height:300px;border-radius:22px;"></div>
+        <div class="loading-skeleton" style="height:300px;border-radius:22px;"></div>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="section stats-section reveal" id="stats-section">
+      <div class="stats-bar">
+        <div class="stat-cell">
+          <div class="stat-cell__number" data-target="11">0</div>
+          <div class="stat-cell__label">Decision Points</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell__number" data-target="6">0</div>
+          <div class="stat-cell__label">Categories</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell__number" data-target="4">0</div>
+          <div class="stat-cell__label">Speakers</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell__number" data-target="2">0</div>
+          <div class="stat-cell__label">Debate Rounds</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="section site-footer">
+      <p class="footer__brand"><a href="https://github.com/5dlabs" target="_blank" rel="noopener">5D Labs</a></p>
+      <p class="footer__sub">Powered by CTO Intake Pipeline</p>
+      <p class="footer__session" id="footerSession"></p>
+    </footer>
   </div>
 
+  <audio id="audioEl" preload="metadata" src="audio/architecture-deliberation.mp3"></audio>
+
   <script>
-    const AUDIO_FILES = [
-      {
-        name: 'architecture-deliberation',
-        mp3: 'audio/architecture-deliberation.mp3',
-        transcript: 'audio/architecture-deliberation.transcript.json'
+    (function () {
+      'use strict';
+
+      /* ═══ HELPERS ═══ */
+      function fmt(s) {
+        if (!isFinite(s) || s < 0) return '0:00';
+        var m = Math.floor(s / 60);
+        var sec = Math.floor(s % 60);
+        return m + ':' + (sec < 10 ? '0' : '') + sec;
       }
-    ];
 
-    async function loadAudio() {
-      const loading = document.getElementById('loading');
-      const errorEl = document.getElementById('error');
-      const playersEl = document.getElementById('players');
+      function markdownToHTML(text) {
+        var html = text;
+        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+        html = html.replace(/^---$/gm, '<hr>');
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-      loading.style.display = 'none';
+        /* Tables */
+        html = html.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)*)/gm, function (match, headerRow, sepRow, bodyRows) {
+          var heads = headerRow.split('|').filter(function (c) { return c.trim() !== ''; });
+          var rows = bodyRows.trim().split('\n');
+          var t = '<table><thead><tr>';
+          heads.forEach(function (h) { t += '<th>' + h.trim() + '</th>'; });
+          t += '</tr></thead><tbody>';
+          rows.forEach(function (r) {
+            var cells = r.split('|').filter(function (c) { return c.trim() !== ''; });
+            t += '<tr>';
+            cells.forEach(function (c) { t += '<td>' + c.trim() + '</td>'; });
+            t += '</tr>';
+          });
+          t += '</tbody></table>';
+          return t;
+        });
 
-      for (const file of AUDIO_FILES) {
-        const name = file.name.replace(/-/g, ' ');
+        /* Lists */
+        html = html.replace(/^[*\-] (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
 
-        const card = document.createElement('div');
-        card.className = 'player-card';
-        card.innerHTML = `
-          <div class="player-header">
-            <span class="player-icon">🔊</span>
-            <span class="player-title">${capitalize(name)}</span>
-          </div>
-          <div class="player-meta">CTO Pay — Morgan intake pipeline</div>
-          <audio controls preload="metadata" src="${file.mp3}"></audio>
-        `;
-        playersEl.appendChild(card);
+        /* Paragraphs */
+        var lines = html.split('\n');
+        var out = [];
+        var inBlock = false;
+        for (var i = 0; i < lines.length; i++) {
+          var ln = lines[i];
+          if (ln.match(/^<(h[1-3]|hr|ul|ol|table|thead|tbody|tr|li|\/)/)) {
+            if (inBlock) { out.push('</p>'); inBlock = false; }
+            out.push(ln);
+          } else if (ln.trim() === '') {
+            if (inBlock) { out.push('</p>'); inBlock = false; }
+          } else {
+            if (!inBlock) { out.push('<p>'); inBlock = true; }
+            out.push(ln);
+          }
+        }
+        if (inBlock) out.push('</p>');
+        return out.join('\n');
+      }
 
-        if (file.transcript) {
-          await renderTranscript(playersEl, file.transcript, file.name);
+      /* ═══ DATA LOADING ═══ */
+      var transcriptData = null;
+      var decisionPoints = [];
+      var segments = [];
+
+      fetch('audio/architecture-deliberation.transcript.json')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          transcriptData = data;
+          segments = data.segments || [];
+          document.getElementById('footerSession').textContent = 'Session ' + (data.sessionId || '');
+          parseDecisionPoints(data);
+          renderTranscript(data);
+          renderDecisionCards();
+          initSegmentTimings();
+        })
+        .catch(function (err) {
+          console.error('Failed to load transcript:', err);
+        });
+
+      /* ═══ PARSE DECISION POINTS ═══ */
+      function parseDecisionPoints(data) {
+        var optimistText = '';
+        var pessimistText = '';
+        data.segments.forEach(function (seg) {
+          if (seg.speaker === 'optimist') optimistText = seg.text;
+          if (seg.speaker === 'pessimist') pessimistText = seg.text;
+        });
+
+        var dpRegex = /\*\*DECISION_POINT:\*\*\s*\n([\s\S]*?)(?=\n\*\*DECISION_POINT:\*\*|\n---|\n## |\n\| DP|$)/g;
+        var match;
+        while ((match = dpRegex.exec(optimistText)) !== null) {
+          var block = match[1];
+          var dp = {};
+          var idM = block.match(/^id:\s*(.+)$/m);
+          var catM = block.match(/^category:\s*(.+)$/m);
+          var qM = block.match(/^question:\s*(.+)$/m);
+          var optM = block.match(/^my_option:\s*([\s\S]*?)(?=\nreasoning:)/m);
+          var resM = block.match(/^reasoning:\s*([\s\S]*?)$/m);
+          if (idM) dp.id = idM[1].trim();
+          if (catM) dp.category = catM[1].trim();
+          if (qM) dp.question = qM[1].trim();
+          if (optM) dp.optimistOption = optM[1].trim();
+          if (resM) dp.optimistReasoning = resM[1].trim();
+          if (dp.id) decisionPoints.push(dp);
+        }
+
+        /* Parse pessimist agreements */
+        var agreeSection = pessimistText.match(/## Where I Agree\s*\n([\s\S]*?)(?=## Where I Disagree|$)/);
+        var agreedIds = [];
+        if (agreeSection) {
+          var agreeMatches = agreeSection[1].match(/\*\*(dp-\d+)/g);
+          if (agreeMatches) {
+            agreeMatches.forEach(function (m) { agreedIds.push(m.replace('**', '')); });
+          }
+        }
+
+        /* Parse pessimist disagreement blocks */
+        var pessimistDPs = {};
+        var pessDpRegex = /\*\*DECISION_POINT:\*\*\s*\n([\s\S]*?)(?=\n\*\*DECISION_POINT:\*\*|\n---|\n## |$)/g;
+        var pm;
+        while ((pm = pessDpRegex.exec(pessimistText)) !== null) {
+          var pBlock = pm[1];
+          var pIdM = pBlock.match(/^id:\s*(.+)$/m);
+          var pOptM = pBlock.match(/^my_option:\s*([\s\S]*?)(?=\nreasoning:)/m);
+          var pResM = pBlock.match(/^reasoning:\s*([\s\S]*?)$/m);
+          if (pIdM) {
+            pessimistDPs[pIdM[1].trim()] = {
+              option: pOptM ? pOptM[1].trim() : '',
+              reasoning: pResM ? pResM[1].trim() : ''
+            };
+          }
+        }
+
+        /* Merge pessimist positions */
+        decisionPoints.forEach(function (dp) {
+          if (agreedIds.indexOf(dp.id) !== -1) {
+            dp.pessimistVerdict = 'agree';
+            dp.pessimistOption = 'Agrees with optimist';
+          } else if (pessimistDPs[dp.id]) {
+            dp.pessimistVerdict = 'disagree';
+            dp.pessimistOption = pessimistDPs[dp.id].option;
+            dp.pessimistReasoning = pessimistDPs[dp.id].reasoning;
+          } else {
+            dp.pessimistVerdict = 'agree';
+            dp.pessimistOption = 'No objection';
+          }
+        });
+      }
+
+      /* ═══ RENDER TRANSCRIPT ═══ */
+      var speakerIcons = { narrator: '\uD83C\uDF99\uFE0F', optimist: '\uD83D\uDFE2', pessimist: '\uD83D\uDFE0', compiler: '\uD83D\uDD37' };
+      var speakerNames = { narrator: 'Narrator', optimist: 'Optimist', pessimist: 'Pessimist', compiler: 'Compiler' };
+
+      function renderTranscript(data) {
+        var container = document.getElementById('transcriptContainer');
+        container.innerHTML = '';
+        data.segments.forEach(function (seg, idx) {
+          var el = document.createElement('div');
+          el.className = 'transcript-seg';
+          el.setAttribute('data-speaker', seg.speaker);
+          el.setAttribute('data-index', idx);
+          var isLong = seg.text.length > 400;
+          var bodyHTML = markdownToHTML(seg.text);
+          el.innerHTML =
+            '<div class="transcript-seg__header">' +
+              '<div class="transcript-seg__avatar">' + (speakerIcons[seg.speaker] || '\uD83D\uDCAC') + '</div>' +
+              '<div>' +
+                '<div class="transcript-seg__speaker">' + speakerNames[seg.speaker] + '</div>' +
+                '<div class="transcript-seg__label">' + seg.label + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="transcript-seg__body' + (isLong ? ' collapsed' : '') + '">' + bodyHTML + '</div>' +
+            (isLong ? '<button class="transcript-seg__toggle" data-idx="' + idx + '">Show more \u2193</button>' : '');
+          container.appendChild(el);
+        });
+
+        container.addEventListener('click', function (e) {
+          var toggle = e.target.closest('.transcript-seg__toggle');
+          if (!toggle) return;
+          var seg = toggle.closest('.transcript-seg');
+          var body = seg.querySelector('.transcript-seg__body');
+          var isCollapsed = body.classList.contains('collapsed');
+          if (isCollapsed) {
+            body.classList.remove('collapsed');
+            body.style.maxHeight = body.scrollHeight + 'px';
+            toggle.textContent = 'Show less \u2191';
+          } else {
+            body.classList.add('collapsed');
+            body.style.maxHeight = '';
+            toggle.textContent = 'Show more \u2193';
+          }
+        });
+      }
+
+      /* ═══ RENDER DECISION CARDS ═══ */
+      function renderDecisionCards() {
+        var grid = document.getElementById('decisionsGrid');
+        grid.innerHTML = '';
+        decisionPoints.forEach(function (dp, i) {
+          var catClass = 'dp-card__cat--' + dp.category;
+          var catLabel = dp.category.replace(/-/g, ' ');
+          var pessVerdictClass = dp.pessimistVerdict === 'agree' ? 'dp-card__pos-verdict--agree' : 'dp-card__pos-verdict--disagree';
+          var pessVerdictLabel = dp.pessimistVerdict === 'agree' ? '\u2713 Agrees' : '\u2717 Disputes';
+          var card = document.createElement('div');
+          card.className = 'dp-card';
+          card.style.transitionDelay = (i * 0.06) + 's';
+          card.innerHTML =
+            '<div class="dp-card__inner">' +
+              '<div class="dp-card__top">' +
+                '<span class="dp-card__cat ' + catClass + '">' + catLabel + '</span>' +
+                '<span class="dp-card__id">' + dp.id.toUpperCase() + '</span>' +
+              '</div>' +
+              '<div class="dp-card__question">' + dp.question + '</div>' +
+              '<div class="dp-card__positions">' +
+                '<div class="dp-card__pos dp-card__pos--optimist">' +
+                  '<div class="dp-card__pos-header">' +
+                    '<span class="dp-card__pos-dot"></span>' +
+                    '<span class="dp-card__pos-label">Optimist</span>' +
+                  '</div>' +
+                  '<div class="dp-card__pos-text">' + dp.optimistOption + '</div>' +
+                '</div>' +
+                '<div class="dp-card__pos dp-card__pos--pessimist">' +
+                  '<div class="dp-card__pos-header">' +
+                    '<span class="dp-card__pos-dot"></span>' +
+                    '<span class="dp-card__pos-label">Pessimist</span>' +
+                    '<span class="dp-card__pos-verdict ' + pessVerdictClass + '">' + pessVerdictLabel + '</span>' +
+                  '</div>' +
+                  '<div class="dp-card__pos-text">' + dp.pessimistOption + '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          grid.appendChild(card);
+        });
+      }
+
+      /* ═══ AUDIO PLAYER ═══ */
+      var audio = document.getElementById('audioEl');
+      var playBtn = document.getElementById('playBtn');
+      var iconPlay = document.getElementById('iconPlay');
+      var iconPause = document.getElementById('iconPause');
+      var progressWrap = document.getElementById('progressWrap');
+      var progressFill = document.getElementById('progressFill');
+      var progressHoverTime = document.getElementById('progressHoverTime');
+      var playerTime = document.getElementById('playerTime');
+      var playerEq = document.getElementById('playerEq');
+      var volumeSlider = document.getElementById('volumeSlider');
+      var volumeBtn = document.getElementById('volumeBtn');
+      var iconVolume = document.getElementById('iconVolume');
+      var iconMuted = document.getElementById('iconMuted');
+      var skipBack = document.getElementById('skipBack');
+      var skipForward = document.getElementById('skipForward');
+      var speakerTag = document.getElementById('playerSpeakerTag');
+      var speakerNameEl = document.getElementById('playerSpeakerName');
+
+      audio.volume = 0.8;
+
+      playBtn.addEventListener('click', function () {
+        if (audio.paused) { audio.play(); } else { audio.pause(); }
+      });
+
+      audio.addEventListener('play', function () {
+        iconPlay.style.display = 'none';
+        iconPause.style.display = 'block';
+        playerEq.classList.add('active');
+      });
+
+      audio.addEventListener('pause', function () {
+        iconPlay.style.display = 'block';
+        iconPause.style.display = 'none';
+        playerEq.classList.remove('active');
+      });
+
+      audio.addEventListener('loadedmetadata', function () {
+        playerTime.textContent = fmt(0) + ' / ' + fmt(audio.duration);
+      });
+
+      audio.addEventListener('timeupdate', function () {
+        if (!audio.duration) return;
+        var pct = (audio.currentTime / audio.duration) * 100;
+        progressFill.style.width = pct + '%';
+        playerTime.textContent = fmt(audio.currentTime) + ' / ' + fmt(audio.duration);
+        updateCurrentSpeaker();
+      });
+
+      /* Progress bar scrub */
+      var isScrubbing = false;
+      function scrubFromEvent(e) {
+        var rect = progressWrap.getBoundingClientRect();
+        var x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+        return x / rect.width;
+      }
+
+      progressWrap.addEventListener('mousedown', function (e) {
+        isScrubbing = true;
+        var pct = scrubFromEvent(e);
+        if (audio.duration) audio.currentTime = pct * audio.duration;
+      });
+
+      document.addEventListener('mousemove', function (e) {
+        if (isScrubbing && audio.duration) {
+          var pct = scrubFromEvent(e);
+          audio.currentTime = pct * audio.duration;
+        }
+        var rect = progressWrap.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top - 20 && e.clientY <= rect.bottom + 20) {
+          var x = e.clientX - rect.left;
+          var hovPct = x / rect.width;
+          if (audio.duration) {
+            progressHoverTime.textContent = fmt(hovPct * audio.duration);
+            progressHoverTime.style.left = x + 'px';
+          }
+        }
+      });
+
+      document.addEventListener('mouseup', function () { isScrubbing = false; });
+
+      /* Touch support */
+      progressWrap.addEventListener('touchstart', function (e) {
+        var touch = e.touches[0];
+        var rect = progressWrap.getBoundingClientRect();
+        var x = Math.max(0, Math.min(touch.clientX - rect.left, rect.width));
+        if (audio.duration) audio.currentTime = (x / rect.width) * audio.duration;
+        isScrubbing = true;
+      }, { passive: true });
+
+      document.addEventListener('touchmove', function (e) {
+        if (!isScrubbing) return;
+        var touch = e.touches[0];
+        var rect = progressWrap.getBoundingClientRect();
+        var x = Math.max(0, Math.min(touch.clientX - rect.left, rect.width));
+        if (audio.duration) audio.currentTime = (x / rect.width) * audio.duration;
+      }, { passive: true });
+
+      document.addEventListener('touchend', function () { isScrubbing = false; });
+
+      /* Skip buttons */
+      skipBack.addEventListener('click', function () {
+        audio.currentTime = Math.max(0, audio.currentTime - 15);
+      });
+      skipForward.addEventListener('click', function () {
+        audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 15);
+      });
+
+      /* Volume */
+      volumeSlider.addEventListener('input', function () {
+        audio.volume = parseFloat(volumeSlider.value);
+        audio.muted = false;
+        updateVolumeIcon();
+      });
+
+      volumeBtn.addEventListener('click', function () {
+        audio.muted = !audio.muted;
+        updateVolumeIcon();
+      });
+
+      function updateVolumeIcon() {
+        if (audio.muted) {
+          iconVolume.style.display = 'none';
+          iconMuted.style.display = 'block';
+        } else {
+          iconVolume.style.display = 'block';
+          iconMuted.style.display = 'none';
         }
       }
-    }
 
-    async function renderTranscript(container, url, baseName) {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) return;
-        const data = await res.json();
-        const segments = data.segments || data;
-        if (!Array.isArray(segments) || segments.length === 0) return;
+      /* ═══ SPEAKER TIMING ═══ */
+      var segTimings = [];
 
-        const section = document.createElement('div');
-        section.className = 'transcript-section';
-
-        const name = baseName.replace(/-/g, ' ');
-        section.innerHTML = `
-          <button class="transcript-toggle" onclick="toggleTranscript(this)">
-            <span>📝 ${capitalize(name)} Transcript</span>
-            <span class="arrow">▶</span>
-          </button>
-          <div class="transcript-body">
-            ${segments.map(s => `
-              <div class="segment ${s.speaker || ''}">
-                <div class="segment-speaker">${s.label || s.speaker || 'Unknown'}</div>
-                <div class="segment-text">${escapeHtml(s.text || '')}</div>
-              </div>
-            `).join('')}
-          </div>
-        `;
-        container.appendChild(section);
-      } catch (e) {
-        // silently skip broken transcripts
+      function initSegmentTimings() {
+        if (!segments.length) return;
+        var dur = audio.duration || 480;
+        var totalChars = 0;
+        segments.forEach(function (s) { totalChars += s.text.length; });
+        var cumulative = 0;
+        segments.forEach(function (s, i) {
+          var startPct = cumulative / totalChars;
+          cumulative += s.text.length;
+          var endPct = cumulative / totalChars;
+          segTimings.push({ start: startPct * dur, end: endPct * dur, speaker: s.speaker, index: i });
+        });
       }
-    }
 
-    function toggleTranscript(btn) {
-      btn.classList.toggle('open');
-      btn.nextElementSibling.classList.toggle('open');
-    }
+      audio.addEventListener('loadedmetadata', function () {
+        if (segments.length && segTimings.length === 0) initSegmentTimings();
+      });
 
-    function capitalize(s) {
-      return s.replace(/\b\w/g, c => c.toUpperCase());
-    }
+      var currentSegIndex = -1;
 
-    function escapeHtml(s) {
-      const div = document.createElement('div');
-      div.textContent = s;
-      return div.innerHTML;
-    }
+      function updateCurrentSpeaker() {
+        if (!segTimings.length) return;
+        var t = audio.currentTime;
+        var newIdx = -1;
+        for (var i = 0; i < segTimings.length; i++) {
+          if (t >= segTimings[i].start && t < segTimings[i].end) { newIdx = i; break; }
+        }
+        if (newIdx === -1 && segTimings.length && t >= segTimings[segTimings.length - 1].end) {
+          newIdx = segTimings.length - 1;
+        }
+        if (newIdx !== -1 && newIdx !== currentSegIndex) {
+          currentSegIndex = newIdx;
+          var speaker = segTimings[newIdx].speaker;
+          speakerTag.setAttribute('data-speaker', speaker);
+          speakerNameEl.textContent = speakerNames[speaker] || speaker;
+          var allSegs = document.querySelectorAll('.transcript-seg');
+          allSegs.forEach(function (el) { el.classList.remove('active'); });
+          var activeSeg = document.querySelector('.transcript-seg[data-index="' + newIdx + '"]');
+          if (activeSeg) {
+            activeSeg.classList.add('active');
+            var container = document.getElementById('transcriptContainer');
+            var segTop = activeSeg.offsetTop - container.offsetTop;
+            container.scrollTo({ top: segTop - 20, behavior: 'smooth' });
+          }
+        }
+      }
 
-    loadAudio();
+      /* Click transcript to seek */
+      document.getElementById('transcriptContainer').addEventListener('click', function (e) {
+        var seg = e.target.closest('.transcript-seg');
+        if (!seg || e.target.closest('.transcript-seg__toggle')) return;
+        var idx = parseInt(seg.getAttribute('data-index'), 10);
+        if (segTimings[idx] && audio.duration) {
+          audio.currentTime = segTimings[idx].start;
+          if (audio.paused) audio.play();
+        }
+      });
+
+      /* ═══ INTERSECTION OBSERVER ═══ */
+      var revealEls = document.querySelectorAll('.reveal');
+      var revealObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) { entry.target.classList.add('visible'); }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+      revealEls.forEach(function (el) { revealObserver.observe(el); });
+
+      /* Decision cards stagger */
+      var cardObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) { entry.target.classList.add('visible'); cardObserver.unobserve(entry.target); }
+        });
+      }, { threshold: 0.05, rootMargin: '0px 0px -40px 0px' });
+
+      var gridCheck = setInterval(function () {
+        if (document.querySelectorAll('.dp-card').length > 0) {
+          clearInterval(gridCheck);
+          document.querySelectorAll('.dp-card').forEach(function (card) { cardObserver.observe(card); });
+        }
+      }, 200);
+
+      /* ═══ STAT COUNTERS ═══ */
+      var statsAnimated = false;
+      var statsObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting && !statsAnimated) {
+            statsAnimated = true;
+            document.querySelectorAll('.stat-cell__number').forEach(function (el) {
+              var target = parseInt(el.getAttribute('data-target'), 10);
+              animateCounter(el, 0, target, 1200);
+            });
+          }
+        });
+      }, { threshold: 0.3 });
+      statsObserver.observe(document.getElementById('stats-section'));
+
+      function animateCounter(el, start, end, duration) {
+        var startTime = null;
+        function step(timestamp) {
+          if (!startTime) startTime = timestamp;
+          var progress = Math.min((timestamp - startTime) / duration, 1);
+          var eased = 1 - Math.pow(1 - progress, 4);
+          el.textContent = Math.round(start + (end - start) * eased);
+          if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
+
+      /* ═══ KEYBOARD SHORTCUTS ═══ */
+      document.addEventListener('keydown', function (e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        switch (e.code) {
+          case 'Space':
+            e.preventDefault();
+            if (audio.paused) audio.play(); else audio.pause();
+            break;
+          case 'ArrowLeft':
+            audio.currentTime = Math.max(0, audio.currentTime - 5);
+            break;
+          case 'ArrowRight':
+            audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
+            break;
+          case 'KeyM':
+            audio.muted = !audio.muted;
+            updateVolumeIcon();
+            break;
+        }
+      });
+    })();
   </script>
 </body>
 </html>
