@@ -1,17 +1,30 @@
 <identity>
-You are rex working on subtask 3003 of task 3.
+You are tess working on subtask 3003 of task 3.
 </identity>
 
 <context>
 <scope>
-Create the withdraw instruction that transfers SPL tokens from the program vault back to the customer's token account, signed by the vault PDA authority. Crucially, this instruction does NOT check pause state — it is a safety valve allowing customers to always exit.
+Implement Mocha describe blocks for Groups 4 and 5 covering deposit, withdraw, and settle_task (without agent package) instructions, including balance verification, cumulative totals, insufficient balance errors, and TaskReceipt field validation.
 </scope>
 </context>
 
 <implementation_plan>
-Create `instructions/withdraw.rs`. Define the `Withdraw` Anchor accounts struct with: `customer` (Signer), `customer_balance` (mut, has_one = customer), `customer_token_account` (mut, Account<TokenAccount> with mint constraint against operator_config.mint), `vault` (mut, Account<TokenAccount>), `operator_config` (Account read-only), `vault_authority` (UncheckedAccount or SystemAccount, PDA seeds = `[VAULT_SEED, operator_config.key().as_ref()]` with bump), `token_program`. Handler args: `amount: u64`. Logic: (1) Do NOT check paused — this is the PRD safety valve. (2) Check `amount > 0` → ZeroAmount. (3) Check `customer_balance.balance >= amount` → InsufficientBalance. (4) Build PDA signer seeds: `&[VAULT_SEED, operator_config.key().as_ref(), &[vault_authority_bump]]`. (5) Build `anchor_spl::token::Transfer` CPI context with_signer using the PDA seeds, from = vault, to = customer_token_account. (6) Call `anchor_spl::token::transfer(cpi_ctx, amount)?`. (7) Update: `balance = balance.checked_sub(amount).ok_or(CtoPayError::ArithmeticOverflow)?`. Ensure vault_authority bump is obtained from ctx.bumps. Export from `instructions/mod.rs`.
+1. **Group 4: Deposits & Withdrawals** — `describe('Deposits & Withdrawals', ...)`:
+   - Setup: Ensure customer account exists (from Group 2 state or create fresh one in `before` hook). Create customer ATA, mint 200 USDC to it.
+   - `it('deposits 100 USDC')`: Call deposit with amount=100_000_000. Fetch customer PDA, verify balance=100_000_000, total_deposited=100_000_000. Verify vault ATA received tokens.
+   - `it('deposits another 50 USDC')`: Call deposit with amount=50_000_000. Verify balance=150_000_000, total_deposited=150_000_000.
+   - `it('withdraws 30 USDC')`: Call withdraw with amount=30_000_000. Verify balance=120_000_000. Verify customer ATA received 30 USDC back.
+   - `it('fails withdraw exceeding balance')`: Call withdraw with amount=200_000_000. Assert InsufficientBalance error.
+   - `it('withdraws remaining balance to zero')`: Call withdraw with amount=120_000_000. Verify balance=0.
+
+2. **Group 5: Settlement — Case 1 (No Agent Package)** — `describe('Settlement - No Agent Package', ...)`:
+   - Setup: Deposit 100 USDC into customer account. Note treasury ATA balance before settlement.
+   - `it('settles TASK-001 for 15 USDC without agent package')`: Call settle_task with task_id='TASK-001', amount=15_000_000, agent_package=None, quality_met=true. Fetch customer PDA: balance=85_000_000. Fetch treasury ATA: received 15_000_000. Fetch TaskReceipt PDA by deriveReceiptPda('TASK-001'): verify task_id, amount=15_000_000, customer, author_earned=0, quality_met=true, status=Settled.
+   - `it('verifies customer counters after settlement')`: Fetch customer PDA, verify task_count=1, total_spent=15_000_000.
+
+3. All token balance checks should use `getTokenAccountBalance` and compare the `amount` string or parsed integer. Account for potential rent-exempt minimum SOL but USDC balances should be exact.
 </implementation_plan>
 
 <validation>
-Verify `anchor build` compiles. IDL contains `withdraw` instruction with `amount` (u64) arg. Critical code review: confirm NO `operator_config.paused` check exists in withdraw handler or account constraints. Code review: vault PDA signer seeds match `[VAULT_SEED, operator_config.key().as_ref(), &[bump]]`. Code review: SPL transfer uses `anchor_spl::token::Transfer` with CPI signer. Code review: balance debit uses checked_sub.
+Run `anchor test` and verify Groups 4-5 pass: 5 tests in Group 4 (deposit 100, deposit 50, withdraw 30, withdraw fail, withdraw to zero), 2 tests in Group 5 (settle no-agent, verify counters). Total: 7 tests. Verify all USDC balances are exact to the lamport. Verify TaskReceipt PDA exists and all fields are correct.
 </validation>

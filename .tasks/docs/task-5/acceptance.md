@@ -1,5 +1,9 @@
-## Acceptance Criteria for Task 5
+## Acceptance Criteria
 
-Run `anchor test` (or `bun test tests/happy-path/`) — all tests pass. Minimum 15 happy-path test cases covering: 1 initialize_operator, 6 customer lifecycle (create, deposit x2, withdraw partial, withdraw full, update caps), 5 settlement (single settle, multi settle, fee verification, daily cap tracking, daily reset with slot warp), 2 refund (refund + withdraw refunded funds), 1 full end-to-end loop. Test suite completes in under 30 seconds using Bankrun. Zero tests skipped.
+- [ ] Run `cargo build --release --bin settlement-sidecar` — compiles with zero errors. Run `cargo test` in the sidecar crate: (1) PDA derivation unit tests — derive customer_balance, agent_package, task_receipt, and vault PDAs from known inputs, verify they match expected Pubkeys (cross-reference with TypeScript derivation from Task 3). (2) SettlementEvent deserialization from JSON — parse a known event payload, verify all fields. (3) Retry logic unit test — simulate 3 failures then success, verify exponential backoff delays. (4) DLQ routing — simulate max_retries exceeded, verify message is written to DLQ stream. (5) Integration test (requires local validator + Redis): push event → verify on-chain TaskReceipt created with matching task_id and amount. Integration test completes in under 30 seconds.
 
-_Generated from task metadata (LLM fallback)._
+## Verification Notes
+
+- [ ] Confirm dependencies are satisfied before implementation.
+- [ ] Update tests, docs, and configuration touched by this task.
+- [ ] Validate the final behavior against the task objective.

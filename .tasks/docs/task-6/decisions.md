@@ -1,7 +1,8 @@
-## Decisions for Task 6
+## Decision Points
 
-- Stack: TypeScript, Bankrun, @coral-xyz/anchor, @solana/spl-token, Bun
-- Agent: tess
-- Priority: high
+_No explicit decision points generated._
 
-_Fallback doc: LLM generation was unavailable._
+## Coordination Notes
+
+- Agent owner: stitch
+- Primary stack: TypeScript/Solana-Web3.js/@coral-xyz/anchor

@@ -1,17 +1,28 @@
 <identity>
-You are cipher working on subtask 7003 of task 7.
+You are blaze working on subtask 7003 of task 7.
 </identity>
 
 <context>
 <scope>
-Systematically review every instruction handler in the Anchor program for access control vulnerabilities: missing or incorrect account validation constraints, absent signer checks on authority-gated operations, missing owner checks on deserialized accounts, and correctness of the pause mechanism (verify only withdraw/refund can bypass pause).
+Define TypeScript interfaces mirroring on-chain account structures (OperatorConfig, CustomerBalance, AgentPackage, TaskReceipt, TaskStatus) and implement utility formatter functions for USDC amounts and quality badges.
 </scope>
 </context>
 
 <implementation_plan>
-1. **Enumerate all instructions**: List every pub fn in the program's instruction handlers. For each, document the expected authorization model. 2. **Account validation (has_one / constraint)**: For each instruction's Accounts struct, verify: (a) all authority fields use `has_one` or equivalent `constraint` checks, (b) PDA accounts use proper `seeds` and `bump` derivation, (c) no accounts are accepted without validation that could be substituted by an attacker. 3. **Signer verification**: Confirm every instruction that mutates state or transfers funds requires `Signer<'info>` on the appropriate authority account. Flag any instruction where a non-signer can trigger privileged operations. 4. **Owner checks**: Verify that all accounts deserialized via `Account<'info, T>` have implicit owner checks from Anchor, and any raw `AccountInfo` usage includes explicit `owner == program_id` checks. 5. **Pause bypass analysis**: Locate the pause/unpause mechanism. Verify that only the specified instructions (withdraw, refund) can execute when paused. Confirm the pause authority is properly restricted. Check for pause state manipulation in unexpected instructions. 6. Document each finding with file:line reference, vulnerability class, and preliminary severity.
+1. Create `src/types/index.ts` (or separate files per type in `src/types/`).
+2. Define `TaskStatus` enum: `Pending`, `Settled`, `Disputed`, `Refunded` matching on-chain variants.
+3. Define `OperatorConfig` interface: `authority: PublicKey`, `mint: PublicKey`, `treasury: PublicKey`, `platformFeeBps: number`, `paused: boolean`.
+4. Define `CustomerBalance` interface: `owner: PublicKey`, `balance: BN`, `totalDeposited: BN`, `totalSpent: BN`, `taskCount: number`, `maxPerTask: BN`, `maxPerDay: BN`, `dailySpent: BN`, `lastDayReset: BN`.
+5. Define `AgentPackage` interface: `packageId: string`, `author: PublicKey`, `splitBps: number`, `totalEarned: BN`, `taskCount: number`, `successCount: number`, `active: boolean`.
+6. Define `TaskReceipt` interface: `taskId: string`, `customer: PublicKey`, `agentPackage: PublicKey`, `amount: BN`, `authorEarned: BN`, `platformFee: BN`, `qualityMet: boolean`, `receiptHash: number[]`, `status: TaskStatus`, `createdAt: BN`, `settledAt: BN | null`.
+7. Create `src/lib/formatters.ts` with:
+   - `formatUsdc(lamports: BN | number): string` — converts to 6-decimal USDC string like '10.00 USDC'.
+   - `formatQuality(met: boolean): { label: string; variant: 'success' | 'destructive' }` — returns badge config for shadcn Badge.
+   - `formatTimestamp(unixSeconds: BN | number): string` — human-readable date/time.
+   - `shortenAddress(address: string, chars?: number): string` — truncates pubkey for display.
+8. Export all types and formatters from barrel files.
 </implementation_plan>
 
 <validation>
-Every instruction handler has a documented access control assessment. All has_one/constraint usages are catalogued. Any missing signer checks are flagged with specific file:line. Pause bypass analysis covers all instruction paths with a matrix showing paused vs. unpaused behavior per instruction.
+Run `npx tsc --noEmit` — zero type errors. Write a small test or console.log script that calls `formatUsdc(10_000_000)` and asserts output is '10.00 USDC'. Call `formatUsdc(0)` and verify '0.00 USDC'. Call `formatQuality(true)` and verify `{ label: 'Met', variant: 'success' }`. Call `shortenAddress('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU')` and verify truncated form like '7xKX...AsU'.
 </validation>

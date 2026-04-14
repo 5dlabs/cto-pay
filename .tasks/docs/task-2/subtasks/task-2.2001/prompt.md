@@ -4,30 +4,37 @@ You are rex working on subtask 2001 of task 2.
 
 <context>
 <scope>
-Create the state/ module with all three PDA account structs, the TaskStatus enum, INIT_SPACE implementations, and unit tests verifying byte layout calculations.
+Define the settle_task account structs (handling optional agent_package/author_ata), implement the full validation chain (paused, auth, per-task cap, daily cap with day rollover, balance check), and decide on the optional accounts strategy.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `programs/cto-pay/src/state/mod.rs` re-exporting all three account modules.
-2. Create `state/operator_config.rs`:
-   - Define `OperatorConfig` with `#[account]` attribute: `authority: Pubkey`, `treasury: Pubkey`, `mint: Pubkey`, `protocol_fee_bps: u16`, `paused: bool`, `bump: u8`.
-   - Implement `Space` trait or use `#[derive(InitSpace)]` to yield 100 bytes (excl. discriminator).
-   - Document PDA seeds: `[OPERATOR_CONFIG_SEED]`.
-3. Create `state/customer_balance.rs`:
-   - Define `CustomerBalance` with `#[account]`: `customer: Pubkey`, `balance: u64`, `total_deposited: u64`, `total_spent: u64`, `task_count: u64`, `max_per_task: u64`, `max_per_day: u64`, `daily_spent: u64`, `daily_reset_slot: u64`, `created_at: i64`, `bump: u8`.
-   - INIT_SPACE = 105 bytes. PDA seeds: `[CUSTOMER_BALANCE_SEED, customer.key().as_ref()]`.
-4. Create `state/task_receipt.rs`:
-   - Define `TaskStatus` enum with `#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]`: `Settled`, `Refunded`, `Disputed`.
-   - Define `TaskReceipt` with `#[account]`: `task_id_hash: [u8; 32]`, `customer: Pubkey`, `amount: u64`, `fee_amount: u64`, `receipt_hash: [u8; 32]`, `operator: Pubkey`, `settled_at: i64`, `status: TaskStatus`, `bump: u8`.
-   - INIT_SPACE = 154 bytes. PDA seeds: `[TASK_RECEIPT_SEED, &task_id_hash]`.
-   - Ensure `task_id_hash` is `[u8; 32]` (SHA-256), NOT a String.
-5. Add `#[cfg(test)]` module in each file with unit tests asserting INIT_SPACE matches manual calculation:
-   - `assert_eq!(OperatorConfig::INIT_SPACE, 100);`
-   - `assert_eq!(CustomerBalance::INIT_SPACE, 105);`
-   - `assert_eq!(TaskReceipt::INIT_SPACE, 154);`
+1. Create `instructions/settle_task.rs`.
+2. Decide on optional accounts approach: If using two variants, create `SettleTaskDefault` and `SettleTaskWithPackage` account structs. If using Anchor's `Option<Account<>>` (available in v0.30+), create a single `SettleTask` struct with optional fields. Document the choice.
+3. Define the core accounts struct:
+   - operator: Signer
+   - operator_config: Account<OperatorConfig> (PDA)
+   - customer_balance: Account<CustomerBalance> (mut, PDA)
+   - treasury_ata: Account<TokenAccount> (mut)
+   - vault: Account<TokenAccount> (mut, PDA)
+   - vault_authority: UncheckedAccount (PDA for signing, seeds=[b"vault", mint.key()])
+   - task_receipt: Account<TaskReceipt> (init, PDA seeds=[b"task_receipt", &hash_seed(&task_id)], payer=operator)
+   - clock: Sysvar<Clock>
+   - mint: Account<Mint>
+   - token_program: Program<Token>
+   - system_program: Program<System>
+   - Optional: agent_package (Account<AgentPackage>, mut), author_ata (Account<TokenAccount>, mut)
+4. Define args: task_id (String), amount (u64), receipt_hash ([u8; 32]), quality_met (bool).
+5. Implement the validation chain as a helper function `validate_settlement(...)` or inline:
+   a. `require!(!operator_config.paused, ProgramPaused)`
+   b. `require!(operator.key() == operator_config.authority, Unauthorized)`
+   c. `require!(amount <= customer_balance.max_per_task, ExceedsPerTaskCap)`
+   d. Daily cap rollover: `let current_day = clock.unix_timestamp as u64 / 86400; if current_day > customer_balance.daily_reset_day { customer_balance.daily_spent = 0; customer_balance.daily_reset_day = current_day; } require!(customer_balance.daily_spent + amount <= customer_balance.max_per_day, ExceedsDailyCap);`
+   e. `require!(customer_balance.balance >= amount, InsufficientBalance)`
+6. Register instruction(s) in lib.rs.
+7. Leave the settlement case logic (token transfers, receipt writing) as TODOs for the next subtasks — this subtask focuses on the account/validation scaffolding.
 </implementation_plan>
 
 <validation>
-Run `cargo test` in the program crate — all 3 INIT_SPACE assertion tests pass. Run `anchor build` — IDL contains all 3 account types with correct field names and types. Verify TaskReceipt IDL shows `task_id_hash` as a fixed byte array, not string. Verify TaskStatus enum appears in IDL with 3 variants.
+Run `anchor build` — settle_task instruction compiles with placeholder logic. Verify the account struct includes all required accounts. Verify the daily cap rollover logic correctly computes current_day from unix_timestamp. Manual code review of validation ordering matches specification.
 </validation>

@@ -1,72 +1,94 @@
-# Task 3: Anchor Program — Customer Balance Operations: create, deposit, withdraw, update_spending_caps (Rex - Rust/Anchor 0.30+)
+## Comprehensive Anchor Program Integration Test Suite (Tess - TypeScript/Anchor/Mocha)
 
-## Overview
-Implement the four customer-facing instructions: create_customer_account, deposit, withdraw, and update_spending_caps. These form the customer's self-service interface for managing their on-chain balance and spending limits.
+### Objective
+Build a thorough integration test suite validating every instruction, edge case, and error path in the cto-billing program. This suite runs on localnet and serves as the quality gate for CI (Task 9).
 
-## Implementation Details
-1. **create_customer_account** (`instructions/create_customer_account.rs`):
-   - Signer: `customer` (the customer wallet).
-   - Accounts: `customer` (signer, mut — pays rent), `customer_balance` (init, PDA seeded by `[CUSTOMER_BALANCE_SEED, customer.key().as_ref()]`), `operator_config` (read — to validate program is not paused), `system_program`.
-   - Args: `max_per_task: u64`, `max_per_day: u64`.
-   - Logic:
-     - Check `!operator_config.paused` → `CtoPayError::ProgramPaused`.
-     - Initialize `CustomerBalance` with: customer pubkey, balance 0, total_deposited 0, total_spent 0, task_count 0, the provided caps, daily_spent 0, daily_reset_slot set to current slot (from `Clock::get()?`), created_at from `Clock::get()?.unix_timestamp`, bump.
-   - Validation: `max_per_task > 0`, `max_per_day > 0`, `max_per_task <= max_per_day`.
+### Ownership
+- Agent: tess
+- Stack: Anchor/TypeScript/Mocha
+- Priority: high
+- Status: pending
+- Dependencies: 1, 2
 
-2. **deposit** (`instructions/deposit.rs`):
-   - Signer: `customer`.
-   - Accounts: `customer` (signer), `customer_balance` (mut, PDA — has_one = customer), `customer_token_account` (mut, token account — validated mint matches `operator_config.mint`), `vault` (mut, program vault token account), `operator_config` (read), `token_program`.
-   - Args: `amount: u64`.
-   - Logic:
-     - Check `!operator_config.paused` → `CtoPayError::ProgramPaused`.
-     - Check `amount > 0` → `CtoPayError::ZeroAmount`.
-     - Validate `customer_token_account.mint == operator_config.mint` → `CtoPayError::InvalidMint`.
-     - Execute SPL token transfer: customer_token_account → vault, amount, signed by customer.
-     - Update CustomerBalance: `balance = balance.checked_add(amount)?`, `total_deposited = total_deposited.checked_add(amount)?`.
-   - Use `anchor_spl::token::Transfer` with CPI.
+### Implementation Details
+1. Set up test infrastructure in `tests/cto-billing.ts`:
+   - Use `@coral-xyz/anchor` test harness with `anchor.workspace.CtoBilling`.
+   - Create helper functions: `createMockMint()`, `createAta(owner, mint)`, `mintTo(ata, amount)`, `derivePackagePda(packageId)`, `deriveCustomerPda(customer)`, `deriveReceiptPda(taskId)`, `deriveVaultPda(mint)`.
+   - All PDA derivation helpers must use SHA-256 hashing consistent with on-chain logic (D2).
+   - Generate test keypairs: operator, customer, author, second_customer, second_author.
 
-3. **withdraw** (`instructions/withdraw.rs`):
-   - Signer: `customer`.
-   - Accounts: `customer` (signer), `customer_balance` (mut, PDA — has_one = customer), `customer_token_account` (mut, validated mint), `vault` (mut), `operator_config` (read), `vault_authority` (PDA signer for CPI), `token_program`.
-   - Args: `amount: u64`.
-   - Logic:
-     - Withdrawals work even when paused (customers can always exit — PRD constraint).
-     - Check `amount > 0` → `CtoPayError::ZeroAmount`.
-     - Check `customer_balance.balance >= amount` → `CtoPayError::InsufficientBalance`.
-     - Validate mint.
-     - Execute SPL token transfer: vault → customer_token_account, amount, signed by vault PDA authority (program signer seeds).
-     - Update: `balance = balance.checked_sub(amount)?`.
-   - **Important**: Withdraw does NOT check paused state. This is a safety valve per PRD.
+2. Test groups (use Mocha `describe` blocks):
 
-4. **update_spending_caps** (`instructions/update_spending_caps.rs`):
-   - Signer: `customer`.
-   - Accounts: `customer` (signer), `customer_balance` (mut, PDA — has_one = customer).
-   - Args: `max_per_task: u64`, `max_per_day: u64`.
-   - Logic:
-     - Validate `max_per_task > 0`, `max_per_day > 0`, `max_per_task <= max_per_day`.
-     - Update `customer_balance.max_per_task` and `customer_balance.max_per_day`.
-     - Do NOT reset `daily_spent` — cap changes take effect on next settlement but don't clear history.
+   **Group 1: Initialization**
+   - Initialize operator config with treasury, mint, protocol_fee_bps=0.
+   - Verify all fields stored correctly.
+   - Attempt re-initialization → should fail (PDA already exists).
 
-5. **Vault authority PDA**: The vault's authority is a PDA derived from `[VAULT_SEED, operator_config.key().as_ref()]`. When the program signs CPI transfers from the vault (for withdraw and refund), it uses these seeds plus the bump.
+   **Group 2: Customer Account Management**
+   - Create customer account with max_per_task=50_000_000 (50 USDC), max_per_day=200_000_000.
+   - Verify initial balances are 0.
+   - Update spending caps to new values, verify update.
+   - Attempt create with same customer → fail (duplicate PDA).
 
-6. **Mint validation pattern** (used in deposit, withdraw, and all settlement instructions):
-   ```rust
-   #[account(
-       constraint = customer_token_account.mint == operator_config.mint @ CtoPayError::InvalidMint
-   )]
-   pub customer_token_account: Account<'info, TokenAccount>,
-   ```
+   **Group 3: Agent Package Registration**
+   - Register package 'test-agent-v1' with split_bps=3000, source_uri='https://github.com/test/agent'.
+   - Verify author, split_bps, active=true, counters=0.
+   - Update package: change split_bps to 2500, verify.
+   - Deactivate package (active=false), verify.
+   - Attempt update by non-author → Unauthorized error.
+   - Register with split_bps=10001 → InvalidSplitBps error.
 
-7. **Register all 4 instructions** in `lib.rs` program module.
+   **Group 4: Deposits & Withdrawals**
+   - Deposit 100 USDC (100_000_000 lamports). Verify balance, total_deposited.
+   - Deposit another 50 USDC. Verify cumulative totals.
+   - Withdraw 30 USDC. Verify balance=120 USDC.
+   - Attempt withdraw 200 USDC → InsufficientBalance error.
+   - Withdraw remaining balance to 0. Verify.
 
-8. All arithmetic uses checked operations. No raw `+`, `-`, `*`, `/` on u64.
+   **Group 5: Settlement — Case 1 (No Agent Package)**
+   - Deposit 100 USDC. Settle task 'TASK-001' for 15 USDC with no agent package.
+   - Verify: customer balance=85, treasury received 15, TaskReceipt fields correct.
+   - Verify customer.task_count=1, total_spent=15 USDC.
 
-## Dependencies
-Tasks: 2
+   **Group 6: Settlement — Case 2 (Quality Met, Split)**
+   - Settle task 'TASK-002' for 20 USDC with agent package (split_bps=3000), quality_met=true.
+   - Verify: customer balance deducted by 20, author received 6 USDC, treasury received 14.
+   - Verify AgentPackage: total_earned=6, task_count=1, success_count=1.
+   - Verify TaskReceipt: amount=20, author_earned=6, quality_met=true.
 
-## Subtasks
-- **Implement create_customer_account instruction**: Create the create_customer_account instruction that initializes a CustomerBalance PDA for a new customer with spending caps, pause validation, and Clock-based timestamps.
-- **Implement deposit instruction with SPL token CPI transfer**: Create the deposit instruction that transfers SPL tokens from the customer's token account to the program vault and credits the customer's on-chain balance using checked arithmetic.
-- **Implement withdraw instruction with vault PDA authority signing**: Create the withdraw instruction that transfers SPL tokens from the program vault back to the customer's token account, signed by the vault PDA authority. Crucially, this instruction does NOT check pause state — it is a safety valve allowing customers to always exit.
-- **Implement update_spending_caps instruction**: Create the update_spending_caps instruction that allows a customer to modify their per-task and daily spending caps without resetting the current daily_spent counter.
-- **Register all 4 customer instructions in lib.rs and verify build/IDL**: Wire up all four customer-facing instructions into the program's lib.rs module, ensure the module exports are correct, run anchor build, and verify the IDL contains all new instructions with correct args and account structures.
+   **Group 7: Settlement — Case 3 (Quality Not Met)**
+   - Settle task 'TASK-003' with agent package, quality_met=false.
+   - Verify: customer balance unchanged, no transfers, TaskReceipt.amount=0.
+   - Verify AgentPackage.task_count incremented but success_count unchanged.
+
+   **Group 8: Spending Cap Enforcement**
+   - Set max_per_task=10 USDC. Attempt settle for 15 → ExceedsPerTaskCap.
+   - Set max_per_day=25 USDC. Settle 20, then attempt 10 → ExceedsDailyCap.
+   - Simulate day rollover by advancing Clock (if possible on local validator) or test the day number logic.
+
+   **Group 9: Circuit Breaker**
+   - Pause program. Attempt settle → ProgramPaused.
+   - Attempt deposit → should still work (or should it be paused too? — check PRD: only settlement/refund).
+   - Unpause. Settle succeeds.
+
+   **Group 10: Refund Flow**
+   - Settle a task, then refund. Verify customer balance restored, receipt status=Refunded.
+   - Attempt refund on already-refunded task → error.
+
+   **Group 11: Idempotency**
+   - Attempt to settle same task_id twice → error (PDA already exists).
+
+   **Group 12: Authorization**
+   - Attempt settle_task with non-operator signer → Unauthorized.
+   - Attempt pause with non-operator → Unauthorized.
+
+3. Add a `test:ci` script in `package.json` that runs the full suite with `--timeout 60000`.
+
+4. Ensure all 30+ test cases complete in under 60 seconds on `solana-test-validator`.
+
+### Subtasks
+- [ ] Test infrastructure setup: helpers, keypairs, Mocha config, and test:ci script: Set up the complete test infrastructure in tests/cto-billing.ts including all helper functions, PDA derivation utilities, keypair generation, Anchor workspace initialization, and the test:ci npm script. This is the foundation all test groups depend on.
+- [ ] Test Groups 1-3: Initialization, Customer Account Management, and Agent Package Registration: Implement Mocha describe blocks for Groups 1-3 covering initialize_operator, create_customer_account, update_spending_caps, register_agent_package, update_agent_package instructions, including all happy paths and error cases (re-init, duplicate PDA, non-author update, invalid split_bps).
+- [ ] Test Groups 4-5: Deposits, Withdrawals, and Settlement Case 1 (No Agent Package): Implement Mocha describe blocks for Groups 4 and 5 covering deposit, withdraw, and settle_task (without agent package) instructions, including balance verification, cumulative totals, insufficient balance errors, and TaskReceipt field validation.
+- [ ] Test Groups 6-8: Settlement with Agent Splits, Quality-Not-Met, and Spending Cap Enforcement: Implement Mocha describe blocks for Groups 6, 7, and 8 covering settle_task with agent package (quality met and not met), author split verification, AgentPackage counter updates, and spending cap enforcement (per-task and per-day limits).
+- [ ] Test Groups 9-12: Circuit Breaker, Refund Flow, Idempotency, and Authorization: Implement Mocha describe blocks for Groups 9-12 covering pause/unpause circuit breaker behavior, refund lifecycle (settle then refund), idempotency protection (duplicate task_id), and authorization checks (non-operator signers).

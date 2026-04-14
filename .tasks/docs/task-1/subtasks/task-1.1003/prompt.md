@@ -1,41 +1,21 @@
 <identity>
-You are bolt working on subtask 1003 of task 1.
+You are rex working on subtask 1003 of task 1.
 </identity>
 
 <context>
 <scope>
-Create the 1Password item for the operator keypair, configure OpenBao sync, and deploy the ExternalSecret CR that materializes the K8s Secret cto-pay-operator-keypair in the cto namespace.
+Create the utils/ module with the SHA-256 hash_seed helper for PDA derivation and define the program vault token account PDA.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create a 1Password item named `cto-pay-operator-keypair` in the appropriate vault. The item should contain the Solana keypair JSON (byte array format, e.g., `[174,47,...]` — 64 integers representing the 32-byte private key + 32-byte public key).
-2. Configure OpenBao to sync this 1Password item. Follow the existing CTO pipeline patterns for 1Password → OpenBao synchronization.
-3. Create an `ExternalSecret` CR YAML at `infra/gitops/cto-pay-operator-keypair-externalsecret.yaml`:
-   ```yaml
-   apiVersion: external-secrets.io/v1beta1
-   kind: ExternalSecret
-   metadata:
-     name: cto-pay-operator-keypair
-     namespace: cto
-   spec:
-     refreshInterval: 1h
-     secretStoreRef:
-       name: openbao-backend
-       kind: ClusterSecretStore
-     target:
-       name: cto-pay-operator-keypair
-       creationPolicy: Owner
-     data:
-       - secretKey: operator-keypair.json
-         remoteRef:
-           key: cto-pay-operator-keypair
-           property: keypair
-   ```
-4. Apply the ExternalSecret and verify the K8s Secret is created with key `operator-keypair.json`.
-5. Document the volume mount path `/secrets/operator-keypair.json` for downstream pod specs.
+1. Create `utils/mod.rs` with `pub fn hash_seed(input: &str) -> [u8; 32]` that computes SHA-256 of the input string and returns the 32-byte digest. Use the `sha2` crate: `use sha2::{Sha256, Digest}; let mut hasher = Sha256::new(); hasher.update(input.as_bytes()); hasher.finalize().into()`.
+2. Add vault PDA seed constants: `pub const VAULT_SEED: &[u8] = b"vault";` — the full seed is `[VAULT_SEED, mint.key().as_ref()]`.
+3. Add all PDA seed constants for consistency: `pub const OPERATOR_CONFIG_SEED: &[u8] = b"operator_config";`, `pub const CUSTOMER_BALANCE_SEED: &[u8] = b"customer_balance";`, `pub const AGENT_PACKAGE_SEED: &[u8] = b"agent_package";`, `pub const TASK_RECEIPT_SEED: &[u8] = b"task_receipt";`.
+4. Add a `find_vault_authority` helper that derives the vault authority PDA if needed, or document the vault PDA signing pattern using `[VAULT_SEED, mint_key, &[bump]]`.
+5. Verify the hash_seed function produces deterministic 32-byte output.
 </implementation_plan>
 
 <validation>
-Run `kubectl get externalsecret cto-pay-operator-keypair -n cto` — status shows `SecretSynced`. Run `kubectl get secret cto-pay-operator-keypair -n cto -o jsonpath='{.data.operator-keypair\.json}'` — base64-decoded value is a valid JSON array of 64 integers. Verify the secret refreshes on schedule (check ExternalSecret status conditions).
+Write a unit test in the utils module: call hash_seed with a known input string and verify the output matches the expected SHA-256 digest. Verify hash_seed("test") produces the same output on repeated calls. Verify `anchor build` compiles the utils module.
 </validation>

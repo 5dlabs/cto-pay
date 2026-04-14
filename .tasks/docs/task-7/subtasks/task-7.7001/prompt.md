@@ -1,17 +1,23 @@
 <identity>
-You are cipher working on subtask 7001 of task 7.
+You are blaze working on subtask 7001 of task 7.
 </identity>
 
 <context>
 <scope>
-Run anchor verify against the deployed program ID to cryptographically confirm that the on-chain bytecode was compiled from the audited source tree. This is the foundational trust prerequisite — all subsequent analysis is meaningless if source does not match deployment.
+Scaffold the Next.js 14 application at demo/web/ using create-next-app with App Router, TypeScript, and Tailwind CSS. Install all Solana SDK packages, wallet adapter packages, and initialize shadcn/ui with required components.
 </scope>
 </context>
 
 <implementation_plan>
-1. Ensure the exact Anchor and Solana CLI versions used for deployment are installed (check Anchor.toml and rust-toolchain.toml). 2. Run `anchor verify <PROGRAM_ID> --provider-url <RPC_URL>` targeting the relevant cluster (devnet or mainnet). 3. If verification fails, document the mismatch: compare build hashes, check for non-deterministic compilation factors (Solana SDK version drift, feature flags). 4. Record the verified commit SHA, Anchor version, and Solana CLI version as audit metadata. 5. If anchor verify is not feasible (e.g., no deployment yet), document this gap and note that bytecode verification must occur before any mainnet deployment.
+1. Run `npx create-next-app@14 demo/web --typescript --tailwind --app --src-dir` to scaffold the project.
+2. cd into demo/web/ and install Solana packages: `npm install @coral-xyz/anchor @solana/web3.js @solana/spl-token`.
+3. Install wallet adapter packages: `npm install @solana/wallet-adapter-react @solana/wallet-adapter-react-ui @solana/wallet-adapter-phantom @solana/wallet-adapter-solflare @solana/wallet-adapter-base`.
+4. Initialize shadcn/ui: `npx shadcn-ui@latest init` — select dark theme, New York style, and configure the components.json.
+5. Install required shadcn components one by one: `npx shadcn-ui@latest add button card badge table dialog input tabs separator toast`.
+6. Verify `npm run dev` starts without errors and the default Next.js page renders.
+7. Ensure tsconfig.json has strict mode enabled and path aliases are configured for `@/` pointing to `src/`.
 </implementation_plan>
 
 <validation>
-Verification passes: `anchor verify` exits 0 with a matching hash. If it fails, the mismatch is documented with root cause. Audit metadata file contains commit SHA, toolchain versions, and verification timestamp.
+Run `npm run dev` — dev server starts without errors. Run `npm run build` — production build succeeds. Run `npx tsc --noEmit` — zero type errors. Verify node_modules contains @coral-xyz/anchor, @solana/web3.js, @solana/wallet-adapter-react. Verify shadcn components exist in src/components/ui/ (button.tsx, card.tsx, badge.tsx, table.tsx, dialog.tsx, input.tsx, tabs.tsx, separator.tsx, toast.tsx).
 </validation>

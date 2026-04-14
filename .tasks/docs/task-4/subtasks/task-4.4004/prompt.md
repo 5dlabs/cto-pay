@@ -4,14 +4,73 @@ You are rex working on subtask 4004 of task 4.
 
 <context>
 <scope>
-Wire up settle_task, refund_task, pause, and unpause into lib.rs, bringing the total program instruction count to 9. Verify the full IDL is generated correctly with all instructions, account structures, and argument types.
+Implement the Redis stream publisher in billing/publisher.rs that publishes SettlementEvent JSON to the cto:settlements stream using XADD, with non-blocking fire-and-forget error handling.
 </scope>
 </context>
 
 <implementation_plan>
-In `lib.rs`, add four new public handler functions to the `#[program]` module: `settle_task(ctx, task_id_hash, amount, receipt_hash)`, `refund_task(ctx)`, `pause(ctx)`, `unpause(ctx)`. Each delegates to the corresponding instruction handler. Update `instructions/mod.rs` to re-export all new modules (SettleTask, RefundTask, Pause, Unpause account structs). Run `anchor build` and verify zero warnings. Inspect `target/idl/cto_pay.json` comprehensively: (a) exactly 9 instructions: initialize_operator, create_customer_account, deposit, withdraw, settle_task, refund_task, update_spending_caps, pause, unpause; (b) settle_task args: task_id_hash ([u8;32]), amount (u64), receipt_hash ([u8;32]); (c) all PDA seeds are correctly reflected; (d) has_one constraints are present on operator-gated instructions; (e) TaskReceipt and CustomerBalance account types appear in the IDL types section with all fields. Verify program binary: `ls -la target/deploy/cto_pay.so` — should be under 1.4MB.
+1. Create `crates/controller/src/billing/publisher.rs`:
+   ```rust
+   use redis::AsyncCommands;
+   use crate::billing::event::SettlementEvent;
+   use crate::billing::BillingError;
+
+   pub struct SettlementPublisher {
+       client: redis::Client,
+   }
+
+   impl SettlementPublisher {
+       pub fn new(redis_url: &str) -> Result<Self, BillingError> {
+           let client = redis::Client::open(redis_url)
+               .map_err(|e| BillingError::RedisPublish(e.to_string()))?;
+           Ok(Self { client })
+       }
+
+       pub async fn publish(&self, event: &SettlementEvent) -> Result<String, BillingError> {
+           let mut conn = self.client.get_multiplexed_async_connection().await
+               .map_err(|e| BillingError::RedisPublish(e.to_string()))?;
+           let payload = serde_json::to_string(event)?;
+           let stream_id: String = redis::cmd("XADD")
+               .arg("cto:settlements")
+               .arg("*")
+               .arg("event")
+               .arg(&payload)
+               .arg("task_id")
+               .arg(&event.task_id)
+               .arg("event_type")
+               .arg(serde_json::to_string(&event.event_type)?)
+               .query_async(&mut conn)
+               .await
+               .map_err(|e| BillingError::RedisPublish(e.to_string()))?;
+           tracing::info!(stream_id = %stream_id, task_id = %event.task_id, "Settlement event published");
+           Ok(stream_id)
+       }
+   }
+   ```
+
+2. Key design constraints:
+   - The publisher must never panic — all Redis errors are caught and logged.
+   - Use `get_multiplexed_async_connection()` for efficient connection reuse.
+   - Include both the full JSON payload and individual indexed fields (task_id, event_type) in the XADD for consumer flexibility.
+   - The returned stream_id serves as the `solana-settlement-event-id` annotation.
+
+3. Add a convenience method `publish_fire_and_forget` that wraps `publish` in a tokio::spawn so it doesn't block the caller:
+   ```rust
+   pub fn publish_fire_and_forget(self: Arc<Self>, event: SettlementEvent) {
+       tokio::spawn(async move {
+           if let Err(e) = self.publish(&event).await {
+               tracing::warn!(error = %e, task_id = %event.task_id, "Failed to publish settlement event");
+           }
+       });
+   }
+   ```
+
+4. Write unit tests:
+   - Mock Redis connection and verify XADD command is constructed with correct stream name and fields.
+   - Test error handling: when Redis connection fails, BillingError::RedisPublish is returned with the error message.
+   - If testcontainers is available, write an integration test: start Redis container, publish an event, XREAD it back, verify all fields.
 </implementation_plan>
 
 <validation>
-Run `anchor build` — zero warnings, zero errors. Parse IDL JSON: exactly 9 instructions present with correct names. Verify settle_task args are [u8;32], u64, [u8;32]. Verify refund_task has no additional args. Verify pause/unpause have no additional args. Check binary size < 1.4MB. Confirm all account types (OperatorConfig, CustomerBalance, TaskReceipt, TaskStatus enum) appear in IDL types.
+Run `cargo test --features solana-billing` — tests pass for: (1) SettlementPublisher::new succeeds with valid Redis URL format, (2) publish correctly formats XADD with stream name 'cto:settlements' and includes task_id and event JSON fields, (3) publish returns BillingError::RedisPublish when connection fails. If testcontainers with Redis is used: publish an event, XREAD from 'cto:settlements', deserialize the event field back to SettlementEvent, and assert all fields match.
 </validation>

@@ -1,7 +1,8 @@
-## Decisions for Task 1
+## Decision Points
 
-- Stack: Anchor CLI, SeaweedFS, External Secrets Operator, Kubernetes
-- Agent: bolt
-- Priority: high
+_No explicit decision points generated._
 
-_Fallback doc: LLM generation was unavailable._
+## Coordination Notes
+
+- Agent owner: rex
+- Primary stack: Rust/Anchor/Solana

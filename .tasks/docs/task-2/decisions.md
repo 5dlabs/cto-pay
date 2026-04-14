@@ -1,7 +1,8 @@
-## Decisions for Task 2
+## Decision Points
 
-- Stack: Rust, Anchor 0.30.1, SPL Token
-- Agent: rex
-- Priority: high
+- Whether to use Anchor Optional<> accounts, remaining accounts pattern, or two separate instruction variants (settle_task_default vs settle_task_with_package) for handling the optional agent_package/author_ata — impacts client-side complexity and IDL shape
 
-_Fallback doc: LLM generation was unavailable._
+## Coordination Notes
+
+- Agent owner: rex
+- Primary stack: Rust/Anchor/Solana

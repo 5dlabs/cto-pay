@@ -4,55 +4,29 @@ You are rex working on subtask 2002 of task 2.
 
 <context>
 <scope>
-Create the constants module with PDA seeds and SLOTS_PER_DAY, and the error enum with all 12 CtoPayError variants.
+Implement the Case 1 settlement path where no agent package is provided: debit customer balance and transfer full amount from vault to treasury via PDA signing.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `programs/cto-pay/src/constants.rs`:
-   ```rust
-   pub const SLOTS_PER_DAY: u64 = 216_000;
-   pub const OPERATOR_CONFIG_SEED: &[u8] = b"operator_config";
-   pub const CUSTOMER_BALANCE_SEED: &[u8] = b"customer_balance";
-   pub const TASK_RECEIPT_SEED: &[u8] = b"task_receipt";
-   pub const VAULT_SEED: &[u8] = b"vault";
-   ```
-   - Add doc comments explaining SLOTS_PER_DAY approximation (400ms/slot, ±10% variance).
-2. Create `programs/cto-pay/src/errors.rs`:
-   ```rust
-   use anchor_lang::prelude::*;
-   
-   #[error_code]
-   pub enum CtoPayError {
-       #[msg("Program is paused")]
-       ProgramPaused,
-       #[msg("Insufficient balance")]
-       InsufficientBalance,
-       #[msg("Amount exceeds per-task spending cap")]
-       SpendingCapPerTaskExceeded,
-       #[msg("Amount exceeds daily spending cap")]
-       SpendingCapDailyExceeded,
-       #[msg("Unauthorized operator")]
-       UnauthorizedOperator,
-       #[msg("Unauthorized customer")]
-       UnauthorizedCustomer,
-       #[msg("Task already settled")]
-       TaskAlreadySettled,
-       #[msg("Task not in settled state for refund")]
-       TaskNotSettled,
-       #[msg("Arithmetic overflow")]
-       ArithmeticOverflow,
-       #[msg("Invalid mint")]
-       InvalidMint,
-       #[msg("Amount must be greater than zero")]
-       ZeroAmount,
-       #[msg("Invalid protocol fee basis points (must be <= 10000)")]
-       InvalidFeeBps,
-   }
-   ```
-3. Ensure both modules are importable and compile without warnings under `clippy::pedantic`.
+1. In the settle_task handler (or settle_task_default variant), implement Case 1 logic:
+2. Debit customer_balance.balance -= amount.
+3. Execute SPL token transfer CPI: transfer `amount` from vault to treasury_ata. Use PDA signer seeds: `&[b"vault", mint.key().as_ref(), &[vault_bump]]`. Derive or pass the vault bump.
+4. Write TaskReceipt fields:
+   - task_id = args.task_id
+   - customer = customer_balance.customer
+   - amount = args.amount
+   - author_earned = 0
+   - quality_met = args.quality_met (passed through — in Case 1 this is informational)
+   - agent_package = None
+   - receipt_hash = args.receipt_hash
+   - operator = operator.key()
+   - settled_at = clock.unix_timestamp
+   - status = TaskStatus::Settled
+5. Update customer counters: daily_spent += amount, total_spent += amount, task_count += 1.
+6. This provides the complete working path for the simplest settlement case.
 </implementation_plan>
 
 <validation>
-Run `anchor build` — compiles cleanly. Verify IDL (`target/idl/cto_pay.json`) contains all 12 error codes with correct names and messages. Verify constants are accessible from instruction modules (confirmed in subtask 2003 build).
+Run `anchor build` — compiles. Write a focused test: deposit 100 USDC, call settle_task with amount=10, no agent package. Verify customer_balance.balance == 90, treasury_ata balance increased by 10, TaskReceipt shows amount=10 and author_earned=0 and status=Settled.
 </validation>

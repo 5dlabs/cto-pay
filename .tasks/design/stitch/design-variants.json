@@ -1,0 +1,25 @@
+{
+  "screens": [
+    {
+      "source_screen_id": "5f13e1aeef0a4fb5b858250e98451a07",
+      "source_target": "web",
+      "variants": [
+        {
+          "variant_id": "5f13e1aeef0a4fb5b858250e98451a07-v1",
+          "source_screen_id": "5f13e1aeef0a4fb5b858250e98451a07",
+          "source_target": "web",
+          "label": "Original (fallback)",
+          "description": "Variant generation failed; using original.",
+          "aspects_changed": [],
+          "screen_id": "5f13e1aeef0a4fb5b858250e98451a07",
+          "html_url": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sX2JjYmQ1OWVjOGQ0OTQ0NmRiYTQ4ZmZkM2E3MGYyNjNlEgsSBxD0x7nTwxwYAZIBJAoKcHJvamVjdF9pZBIWQhQxNTUwODE0NjE5OTExNTU3MDY2OA&filename=&opi=96797242",
+          "image_url": "https://lh3.googleusercontent.com/aida/ADBb0ujrf05SzVEv09mfuiMN1Z3h1RR79YHOIxQycqjOTJYE2OpAPQmXa3NqqNxKyjrbmvzmcW-ubrXqSd9KBOcSR-2Ny4sF6VKEMSOETKeET0ZDvuQmsCeMhm8gJ0lclOXjOWbvzk4-CylnKYxGIQtRmkS3oGWI2Z69iFFvnN8QOZIrbPxtWvZa_PDXFgelIhMWkZL9m6EPhPPO6lMdjwm6IZqO0AeuJ7hw4l8qblcjlAAX_TDxfVFJ9-TWZIAk=w1920",
+          "status": "failed",
+          "error": "The operation was aborted."
+        }
+      ]
+    }
+  ],
+  "total_variants": 0,
+  "timestamp": "2026-04-14T19:23:53.266Z"
+}

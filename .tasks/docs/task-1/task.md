@@ -1,84 +1,48 @@
-# Task 1: Dev Infra Bootstrap — Repo Scaffold, Secrets, Receipt Storage, ConfigMap (Bolt - Anchor CLI / K8s / SeaweedFS)
+## Anchor Program Core Account Structures & Foundation Instructions (Rex - Rust/Anchor/Solana)
 
-## Overview
-Bootstrap the cto-pay repo with Anchor project structure and provision all cluster-side infrastructure: SeaweedFS receipt bucket, operator keypair secret via the 1Password → OpenBao → External Secrets pipeline, and a cto-pay-infra-endpoints ConfigMap aggregating connection strings for RPC and storage. All downstream tasks depend on this.
+### Objective
+Create the Anchor workspace and implement all PDA account structures (OperatorConfig, CustomerBalance, AgentPackage, TaskReceipt) plus all non-settlement instructions. This task produces the program IDL consumed by every downstream TypeScript task.
 
-## Implementation Details
-1. **Scaffold cto-pay repo** at `https://github.com/5dlabs/cto-pay`:
-   - Run `anchor init cto-pay` with Anchor 0.30.1 (pin in Anchor.toml).
-   - Set Solana CLI version to 1.18+ in Anchor.toml.
-   - Directory structure:
-     ```
-     programs/cto-pay/src/lib.rs      ← Anchor program entry
-     programs/cto-pay/Cargo.toml
-     tests/                            ← Bankrun tests (TS)
-     cli/                              ← CLI package (Bun)
-     cli/package.json
-     cli/tsconfig.json
-     cli/src/index.ts
-     scripts/                          ← Devnet setup scripts
-     config/                           ← Token config, devnet settings
-     Anchor.toml
-     Cargo.toml (workspace)
-     package.json (root — workspace for tests + CLI)
-     tsconfig.json (root)
-     .gitignore
-     README.md
-     ```
-   - Root `package.json`: workspaces `["tests", "cli"]`, devDependencies: `@coral-xyz/anchor`, `@solana/web3.js`, `@solana/spl-token`, `typescript`, `@types/node`.
-   - `cli/package.json`: name `cto-pay`, bin `cto-pay`, dependencies: `@coral-xyz/anchor`, `@solana/web3.js`, `@solana/spl-token`, `commander` (for CLI arg parsing), `bs58`.
-   - Pin Bun 1.1+ in `.tool-versions` or `package.json#engines`.
-   - Add `.github/` directory stub for workflows (populated by Atlas in Task 12).
-   - Configure `programs/cto-pay/Cargo.toml` with: `anchor-lang = "0.30.1"`, `anchor-spl = "0.30.1"`, `solana-program = "1.18"`. Set `rust-version = "1.75"` and edition 2021.
-   - Set workspace Cargo.toml `[profile.release]` with `overflow-checks = true` and `lto = "thin"`.
-   - Add biome.json for TypeScript linting (consistent with existing CTO quality standards).
+### Ownership
+- Agent: rex
+- Stack: Rust/Anchor/Solana
+- Priority: high
+- Status: pending
+- Dependencies: None
 
-2. **Provision SeaweedFS receipt bucket** in the CTO cluster:
-   - Create bucket `cto-pay-receipts` in the existing SeaweedFS deployment (namespace `cto`).
-   - Use the SeaweedFS S3 API or `weed shell` to create the bucket.
-   - Create a K8s Job or init script in `infra/gitops/` that ensures the bucket exists.
+### Implementation Details
+1. Initialize Anchor workspace at `programs/cto-billing/` with `anchor init` (Anchor v0.30+). Set program ID placeholder in `lib.rs` and `Anchor.toml`.
 
-3. **Provision operator keypair secret** via the existing secrets pipeline:
-   - Create a 1Password item `cto-pay-operator-keypair` containing the Solana keypair JSON (byte array format).
-   - Configure OpenBao to sync this item.
-   - Create an `ExternalSecret` CR in namespace `cto` that creates K8s Secret `cto-pay-operator-keypair` with key `operator-keypair.json`.
-   - The pod spec (controller) will mount this as a volume at `/secrets/operator-keypair.json`.
-   - Set `SOLANA_OPERATOR_KEYPAIR_PATH=/secrets/operator-keypair.json` in the ConfigMap.
+2. Define account structures in `state/` modules:
+   - `OperatorConfig` (PDA seed: `[b"operator_config"]`): authority (Pubkey), treasury (Pubkey), mint (Pubkey — mint-agnostic per D4), protocol_fee_bps (u16), paused (bool). Singleton PDA.
+   - `CustomerBalance` (PDA seed: `[b"customer_balance", customer.key().as_ref()]`): customer (Pubkey), balance (u64), total_deposited (u64), total_spent (u64), task_count (u64), max_per_task (u64), max_per_day (u64), daily_spent (u64), daily_reset_day (u64 — renamed from daily_reset_slot per D9), created_at (i64).
+   - `AgentPackage` (PDA seed: `[b"agent_package", sha256(package_id)[..32]]`): package_id (String, #[max_len(64)] per D8), author (Pubkey), split_bps (u16), source_uri (String, #[max_len(256)]), total_earned (u64), task_count (u64), success_count (u64), registered_at (i64), active (bool).
+   - `TaskReceipt` (PDA seed: `[b"task_receipt", sha256(task_id)[..32]]`): task_id (String, #[max_len(64)]), customer (Pubkey), amount (u64), author_earned (u64), quality_met (bool), agent_package (Option<Pubkey>), receipt_hash ([u8; 32]), operator (Pubkey), settled_at (i64), status (TaskStatus enum: Settled/Refunded/Disputed).
 
-4. **Create `cto-pay-infra-endpoints` ConfigMap** in namespace `cto`:
-   ```yaml
-   apiVersion: v1
-   kind: ConfigMap
-   metadata:
-     name: cto-pay-infra-endpoints
-     namespace: cto
-   data:
-     SEAWEEDFS_ENDPOINT: "http://seaweedfs-s3.cto.svc.cluster.local:8333"
-     SEAWEEDFS_BUCKET: "cto-pay-receipts"
-     SOLANA_RPC_URL: "https://devnet.helius-rpc.com/?api-key=<HELIUS_API_KEY>"
-     SOLANA_OPERATOR_KEYPAIR_PATH: "/secrets/operator-keypair.json"
-     CTO_PAY_ENABLED: "false"
-   ```
-   - Store the Helius API key in 1Password and reference via ExternalSecret (do NOT inline in ConfigMap). Use a Secret for the RPC URL if it contains the API key, or use a separate Secret `cto-pay-helius-api-key`.
+3. Implement a `utils/` module with `hash_seed(input: &str) -> [u8; 32]` helper using SHA-256 for PDA derivation (D2).
 
-5. **Generate and commit operator keypair for devnet development**:
-   - Run `solana-keygen new -o devnet-operator-keypair.json --no-bip39-passphrase` locally.
-   - Fund it on devnet: `solana airdrop 5 --keypair devnet-operator-keypair.json`.
-   - Store in 1Password for the pipeline. Add `devnet-operator-keypair.json` to `.gitignore`.
+4. Implement instructions:
+   - `initialize_operator(authority, treasury, mint, protocol_fee_bps)` — Creates OperatorConfig. Validate signer is the initial authority. Store mint Pubkey for token validation.
+   - `create_customer_account(max_per_task, max_per_day)` — Creates CustomerBalance PDA for signing customer. Initialize all counters to 0.
+   - `register_agent_package(package_id, split_bps, source_uri)` — Permissionless. Creates AgentPackage PDA with signer as author. Validate split_bps ≤ 10000. **Also create/verify author's ATA for the configured mint exists (passed as account, validated but NOT created — per D11).** Store registered_at from Clock sysvar.
+   - `update_agent_package(source_uri, split_bps, active)` — Author-only (verify signer == agent_package.author). Update mutable fields.
+   - `deposit(amount)` — Transfer USDC from customer's ATA to program vault (PDA-controlled token account). Increment customer.balance and customer.total_deposited. Emit Deposited event.
+   - `withdraw(amount)` — Transfer from vault to customer's ATA. Validate amount ≤ balance. Decrement balance. Emit Withdrawn event.
+   - `update_spending_caps(max_per_task, max_per_day)` — Customer-only. Update cap fields.
+   - `pause()` / `unpause()` — Operator-only (verify signer == operator_config.authority). Toggle paused flag.
 
-6. **Create devnet setup script** at `scripts/setup-devnet.sh`:
-   - Airdrop SOL to operator and test customer wallets.
-   - Create custom SPL token mint (6 decimals) — store mint address in `config/devnet.json`.
-   - Mint test tokens to customer wallets.
-   - This script is called by CI and by developers for local setup.
+5. Define program vault as a token account PDA (seed: `[b"vault", mint.key().as_ref()]`) with the program as authority.
 
-## Dependencies
-None
+6. Add comprehensive Anchor error enum: `InsufficientBalance`, `ExceedsPerTaskCap`, `ExceedsDailyCap`, `Unauthorized`, `ProgramPaused`, `InvalidSplitBps`, `DuplicateTaskId`, `InvalidMint`, `PackageInactive`, `InvalidAmount`.
 
-## Subtasks
-- **Scaffold cto-pay Anchor repo with directory structure, Cargo.toml, and package.json workspaces**: Initialize the cto-pay repo using Anchor CLI and configure the full project directory structure, Rust workspace, TypeScript workspaces, tooling configs, and all dependency pinning.
-- **Provision SeaweedFS receipt bucket cto-pay-receipts**: Create the cto-pay-receipts bucket in the existing SeaweedFS deployment in the cto namespace, and create a K8s Job manifest in infra/gitops/ to ensure idempotent bucket creation.
-- **Provision operator keypair secret via 1Password → OpenBao → ExternalSecret pipeline**: Create the 1Password item for the operator keypair, configure OpenBao sync, and deploy the ExternalSecret CR that materializes the K8s Secret cto-pay-operator-keypair in the cto namespace.
-- **Create cto-pay-infra-endpoints ConfigMap and Helius API key ExternalSecret**: Deploy the cto-pay-infra-endpoints ConfigMap with all 5 required keys and a separate ExternalSecret for the Helius API key, ensuring sensitive values are not inlined in the ConfigMap.
-- **Generate devnet operator keypair, fund on devnet, and store in 1Password**: Generate a Solana keypair for devnet operator use, airdrop SOL to it, store it securely in 1Password for the secrets pipeline, and ensure it is gitignored.
-- **Create devnet setup script (scripts/setup-devnet.sh)**: Write the devnet bootstrap script that airdrops SOL, creates a custom SPL token mint with 6 decimals, mints test tokens to customer wallets, and writes all addresses to config/devnet.json.
+7. Ensure `anchor build` produces `target/idl/cto_billing.json` and `target/types/cto_billing.ts` — these are consumed by Tasks 3, 5, 6, 7, 8.
+
+### Subtasks
+- [ ] Initialize Anchor workspace and project configuration: Scaffold the Anchor workspace at programs/cto-billing/ with Anchor v0.30+, configure Cargo.toml dependencies, Anchor.toml settings, and lib.rs entry point with program ID placeholder and module declarations.
+- [ ] Implement PDA account structures in state/ modules: Define all four PDA account structures (OperatorConfig, CustomerBalance, AgentPackage, TaskReceipt) with correct seeds, fields, space calculations, and the TaskStatus enum.
+- [ ] Implement utils module (hash_seed helper) and program vault PDA definition: Create the utils/ module with the SHA-256 hash_seed helper for PDA derivation and define the program vault token account PDA.
+- [ ] Implement error enum for all program errors: Define the comprehensive Anchor error enum covering all validation failure cases across all instructions.
+- [ ] Implement initialization and account creation instructions: Implement the initialize_operator, create_customer_account, register_agent_package, and update_agent_package instructions with full validation and Anchor constraints.
+- [ ] Implement token flow instructions (deposit, withdraw) with vault PDA: Implement the deposit and withdraw instructions with SPL token transfers between customer ATAs and the program vault PDA, including vault initialization logic.
+- [ ] Implement admin and customer management instructions (update_spending_caps, pause, unpause): Implement the update_spending_caps (customer-only), pause (operator-only), and unpause (operator-only) instructions.
+- [ ] Smoke test suite — 6 integration tests on local validator: Write and execute the 6 smoke tests as specified in the test strategy: initialize operator, create customer, register agent package, deposit, withdraw, and pause.

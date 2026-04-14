@@ -1,44 +1,39 @@
 <identity>
-You are tess working on subtask 6004 of task 6.
+You are stitch working on subtask 6004 of task 6.
 </identity>
 
 <context>
 <scope>
-Write overflow-edge.test.ts with 7 tests covering u64::MAX deposits, near-overflow total_spent, large-amount fee computation, and zero-amount rejection for deposit/settle/withdraw.
+Build the receipt verification phase with formatted table output, customer withdrawal with final summary, global error handling, and wire all phases together in the main entry point.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `tests/edge-cases/overflow-edge.test.ts`. Import helpers and error assertion utility.
+1. Implement `src/phases/phase8.ts` — Verify On-Chain Receipts:
+   a. Derive and fetch all three TaskReceipt PDAs (CTO-1234, CTO-1235, CTO-1236) using program.account.taskReceipt.fetch().
+   b. Build a formatted console table (use string padding or a simple table library) with columns: Task ID, Amount (USDC), Author Earned (USDC), Quality, Status.
+   c. Row 1: CTO-1234 | 10.00 | 3.00 | ✅ MET | Settled
+   d. Row 2: CTO-1235 | 0.00 | 0.00 | ❌ NOT MET | Settled
+   e. Row 3: CTO-1236 | 5.00 | 0.00 | ✅ MET | Settled
+   f. Fetch AgentPackage PDA for smart-debug-agent-v1. Display: total_earned, task_count, success_count.
 
-2. Define `U64_MAX = BigInt('18446744073709551615')` (2^64 - 1) for boundary testing.
+2. Implement `src/phases/phase9.ts` — Customer Withdraws:
+   a. Fetch CustomerBalance to get remaining balance (should be 185_000_000 = 200 - 10 - 5).
+   b. Call `withdraw` instruction signed by customer with the full remaining balance.
+   c. Verify CustomerBalance.balance is now 0.
+   d. Log withdrawal amount (185.00 USDC), final balance (0.00), Explorer link.
+   e. Print final summary with chalk.bold: 'Demo complete! Customer deposited 200 USDC, was charged 15 USDC for 2 successful tasks, was protected from 1 failed task, and withdrew 185 USDC.'
 
-3. Test 'deposit of u64::MAX fails gracefully with checked arithmetic':
-   - Create customer. Attempt deposit of U64_MAX. The SPL token transfer or the program's checked_add should fail. Assert an error is thrown (either Anchor arithmetic overflow or SPL insufficient funds — the customer won't have this many tokens). Document whichever error occurs.
+3. Implement `src/index.ts` — Main entry point:
+   a. Parse CLI args using commander.
+   b. Create Solana Connection and Anchor Provider.
+   c. Execute phases 0 through 9 sequentially, passing state (keypairs, addresses, mint) between phases.
+   d. Wrap the entire sequence in a try/catch: on error, log the phase that failed, the error message, and if it's a SendTransactionError, log the program logs. Exit with process.exit(1).
+   e. On success, log total execution time.
 
-4. Test 'settle with amount that would overflow total_spent fails':
-   - This requires pre-seeding near-max values. Strategy: Use Bankrun's `setAccount()` to directly write a CustomerBalance account with total_spent = U64_MAX - 1_000_000. Then attempt settle for 2_000_000. Assert checked arithmetic overflow error.
-   - Alternative if direct account manipulation is complex: Just attempt a very large settlement and verify the error.
-
-5. Test 'daily spending near u64::MAX boundary':
-   - Similar to above: pre-seed daily_spent near max, attempt settlement that would overflow. Assert error.
-
-6. Test 'fee computation with large amount does not overflow':
-   - The computation is `amount * protocol_fee_bps / 10_000`. If amount = 10^18 and bps = 10_000, intermediate value = 10^22 which overflows u64. Create setup with large amount. Assert the program handles this (either via u128 intermediate or by rejecting).
-   - If using Bankrun's setAccount to pre-seed a large balance, attempt settle for 10^18. Verify no silent overflow (fee should be correct or error thrown).
-
-7. Test 'zero amount deposit fails with ZeroAmount':
-   - Create customer. Attempt deposit of 0. Assert error code === 'ZeroAmount'.
-
-8. Test 'zero amount settlement fails with ZeroAmount':
-   - Create customer, deposit 100M. Attempt settle for 0. Assert 'ZeroAmount'.
-
-9. Test 'zero amount withdrawal fails with ZeroAmount':
-   - Create customer, deposit 100M. Attempt withdraw of 0. Assert 'ZeroAmount'.
-
-10. For the pre-seeded account tests: Use Bankrun's `context.setAccount(pda, accountInfo)` to write a CustomerBalance with near-max values. Construct the account data buffer matching the Anchor account discriminator + serialized struct layout.
+4. Ensure `npm run demo:localnet` and `npm run demo:devnet` scripts are correct and functional.
 </implementation_plan>
 
 <validation>
-Run `bun test tests/edge-cases/overflow-edge.test.ts` — all 7 tests pass. Verify zero-amount tests assert exactly 'ZeroAmount'. Verify overflow tests confirm the program uses checked arithmetic (no silent wrapping). If pre-seeded account tests are used, verify the account layout matches the program's expected discriminator and serialization.
+Run `npm run demo:localnet` end-to-end against solana-test-validator with cto-billing deployed. The script completes all 10 phases without errors in under 120 seconds. Verify: (1) Phase 8 table output contains all 3 rows with correct values — parse stdout for 'CTO-1234', '10.00', '3.00', '✅ MET'. (2) Phase 9 output contains '185.00' as withdrawal amount. (3) Final summary message appears in stdout. (4) Customer ATA balance after script = 185_000_000 (USDC returned). CustomerBalance PDA balance = 0. (5) Exit code is 0 on success. (6) Deliberately break one phase (e.g., wrong program ID) — verify error is caught, logged with context, and exit code is 1. (7) `npx tsc --noEmit` passes with zero errors.
 </validation>
