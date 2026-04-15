@@ -120,6 +120,7 @@ anchor test
 ## Links
 
 - [**PRD**](prd.md) — full product requirements document
+- [**Design Brief**](.tasks/docs/design-brief.md) — detailed architecture decisions from the deliberation process
 - [**CTO Platform**](https://github.com/5dlabs/cto) — the parent autonomous engineering platform
 - [**5D Labs**](https://5dlabs.io) — the team behind CTO
 
