@@ -3,7 +3,7 @@ metadata:
   task_id: 5
   agent: cleo
   phase: quality
-  stack: Rust/solana-sdk/solana-client
+  stack: Rust/Axum
   cli: Claude Code
   model: claude-opus-4-6-20260205
 

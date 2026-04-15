@@ -4,29 +4,14 @@ You are rex working on subtask 2002 of task 2.
 
 <context>
 <scope>
-Implement the Case 1 settlement path where no agent package is provided: debit customer balance and transfer full amount from vault to treasury via PDA signing.
+Create the BillingError enum in programs/cto-billing/src/errors.rs with all error variants needed by instructions.
 </scope>
 </context>
 
 <implementation_plan>
-1. In the settle_task handler (or settle_task_default variant), implement Case 1 logic:
-2. Debit customer_balance.balance -= amount.
-3. Execute SPL token transfer CPI: transfer `amount` from vault to treasury_ata. Use PDA signer seeds: `&[b"vault", mint.key().as_ref(), &[vault_bump]]`. Derive or pass the vault bump.
-4. Write TaskReceipt fields:
-   - task_id = args.task_id
-   - customer = customer_balance.customer
-   - amount = args.amount
-   - author_earned = 0
-   - quality_met = args.quality_met (passed through — in Case 1 this is informational)
-   - agent_package = None
-   - receipt_hash = args.receipt_hash
-   - operator = operator.key()
-   - settled_at = clock.unix_timestamp
-   - status = TaskStatus::Settled
-5. Update customer counters: daily_spent += amount, total_spent += amount, task_count += 1.
-6. This provides the complete working path for the simplest settlement case.
+1. Create `programs/cto-billing/src/errors.rs`. 2. Define `#[error_code]` enum `BillingError` with variants: InsufficientBalance (msg: 'Insufficient balance for withdrawal'), ExceedsPerTaskCap (msg: 'Amount exceeds per-task spending cap'), ExceedsDailyCap (msg: 'Amount exceeds daily spending cap'), ProgramPaused (msg: 'Program is currently paused'), Unauthorized (msg: 'Unauthorized: signer is not the operator authority'), InvalidTreasury (msg: 'Treasury address cannot be the zero address'), InvalidAmount (msg: 'Amount must be greater than zero'), InvalidCaps (msg: 'max_per_task must be less than or equal to max_per_day'), InvalidProtocolFee (msg: 'Protocol fee basis points must be <= 10000'). 3. Export the error module from lib.rs. 4. Ensure error codes are stable and documented for client-side matching.
 </implementation_plan>
 
 <validation>
-Run `anchor build` — compiles. Write a focused test: deposit 100 USDC, call settle_task with amount=10, no agent package. Verify customer_balance.balance == 90, treasury_ata balance increased by 10, TaskReceipt shows amount=10 and author_earned=0 and status=Settled.
+Module compiles without errors. All 9 error variants are defined with descriptive messages. Error enum is accessible from instruction modules. `anchor build` includes errors in the generated IDL.
 </validation>

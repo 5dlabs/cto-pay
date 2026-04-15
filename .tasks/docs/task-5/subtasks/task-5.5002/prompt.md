@@ -4,20 +4,23 @@ You are rex working on subtask 5002 of task 5.
 
 <context>
 <scope>
-Build the Redis stream consumer module that creates consumer groups, reads messages via XREADGROUP with blocking, recovers pending messages on startup, and routes failed messages to a dead-letter queue.
+Add billing-related configuration fields to the controller's config struct so that the billing module can read Solana RPC URL, operator keypair path, program ID, feature flag, and receipt upload endpoint from environment/ConfigMap.
 </scope>
 </context>
 
 <implementation_plan>
-1. Implement `src/consumer.rs` with a `StreamConsumer` struct holding an async Redis connection, stream_name, consumer_group, consumer_name, max_retries.
-2. On `StreamConsumer::init()`: issue `XGROUP CREATE <stream> <group> 0 MKSTREAM` — catch and ignore the 'BUSYGROUP' error if group already exists.
-3. Implement `recover_pending()`: call `XREADGROUP GROUP <group> <consumer> COUNT 100 STREAMS <stream> 0` to fetch any previously read but un-ACKed messages. Process each before entering the main loop.
-4. Main loop in `consume()`: call `XREADGROUP GROUP <group> <consumer> BLOCK 5000 COUNT 10 STREAMS <stream> >`. Parse each message payload into a SettlementEvent. For each event, call a provided async callback (the transaction submission pipeline). On callback success: `XACK <stream> <group> <id>`. On callback failure with retries exhausted: write to DLQ.
-5. Implement `send_to_dlq()`: `XADD cto:settlements:dlq * original_id <id> event <json> error <error_msg> failed_at <timestamp>`. Then XACK the original message.
-6. Return parsed SettlementEvent and message ID from each read for downstream processing.
-7. Ensure graceful shutdown on SIGTERM: finish processing current message, then exit the loop.
+1. Open `crates/controller/src/tasks/config.rs`.
+2. Add the following fields to the existing controller config struct (gated behind `#[cfg(feature = "billing")]` if using feature flag):
+   - `solana_rpc_url: Option<String>` — e.g., `https://api.devnet.solana.com`. Populated from `SOLANA_RPC_URL` env var.
+   - `solana_operator_keypair_path: Option<String>` — filesystem path to the operator's Solana keypair JSON. Populated from `SOLANA_OPERATOR_KEYPAIR_PATH` env var (mounted from OpenBao secret).
+   - `solana_program_id: Option<String>` — the deployed cto_billing program ID. From `SOLANA_PROGRAM_ID` env var.
+   - `solana_billing_enabled: bool` — feature toggle, default `false`. From `SOLANA_BILLING_ENABLED` env var.
+   - `irys_upload_endpoint: Option<String>` — URL or command for receipt upload. From `IRYS_UPLOAD_ENDPOINT` env var.
+3. Update the config parsing/loading function to read these from environment variables.
+4. Add validation: if `solana_billing_enabled` is true, assert that `solana_rpc_url`, `solana_operator_keypair_path`, and `solana_program_id` are all `Some`, otherwise log a warning and disable billing.
+5. Create `struct BillingConfig` in a new file `crates/controller/src/tasks/code/billing.rs` that extracts and holds these fields in a typed, validated form, including a parsed `Pubkey` for program_id and a loaded `Keypair` for the operator.
 </implementation_plan>
 
 <validation>
-Unit test with a mock Redis (or real local Redis via testcontainers): (1) Verify consumer group creation is idempotent — call init() twice, no error. (2) Push 3 messages to stream, verify consume() yields all 3 SettlementEvents in order. (3) Simulate callback failure for max_retries, verify message appears in DLQ stream with error details and original is ACKed. (4) Push 2 messages, ACK only 1, restart consumer — verify pending recovery picks up the un-ACKed message.
+Run `cargo test -p controller -- config` — config parsing tests pass. Test that setting `SOLANA_BILLING_ENABLED=true` without `SOLANA_RPC_URL` logs a warning and disables billing. Test that all fields parse correctly from mock environment variables. BillingConfig::new returns Ok with valid inputs and descriptive Err with missing fields.
 </validation>

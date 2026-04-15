@@ -1,33 +1,28 @@
 <identity>
-You are blaze working on subtask 8001 of task 8.
+You are tess working on subtask 8001 of task 8.
 </identity>
 
 <context>
 <scope>
-Create the SettlementFeed component using shadcn DataTable to display TaskReceipt records with columns for Task ID, Amount, Author Earned, Quality status (color-coded badges), Status, and timestamp. Fetch TaskReceipt PDAs from the on-chain program with polling or subscription.
+Create the test infrastructure foundation: TypeScript config for Mocha/Chai tests, shared helper utilities (createFundedWallet, mintTestUsdc, findPda, fetchAccount, assertError, sleep), sample receipt fixtures, and test reporter configuration.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `src/components/SettlementFeed.tsx` as a client component.
-2. Define the DataTable column configuration using shadcn's column helper pattern:
-   - `taskId`: string, truncated with tooltip for full ID.
-   - `amount`: formatted via `formatUsdc()` from Task 7 types.
-   - `authorEarned`: formatted via `formatUsdc()`.
-   - `qualityMet`: render a shadcn `Badge` — green (`bg-solana-green/20 text-solana-green`) for `true`, red (`bg-red-500/20 text-red-500`) for `false`.
-   - `status`: render as Badge with appropriate color per TaskStatus enum.
-   - `settledAt` or `createdAt`: formatted via `formatTimestamp()`.
-3. Use `useProgram()` hook to get the Anchor Program instance.
-4. Fetch all TaskReceipt accounts using `program.account.taskReceipt.all()` or with filters if needed.
-5. Implement a polling mechanism: `useEffect` with `setInterval` every 5 seconds to refresh the list, or use `connection.onProgramAccountChange` for real-time updates.
-6. Store receipts in state, sorted by timestamp descending (newest first).
-7. Handle empty state: show a message 'No settlements yet' with an icon.
-8. Handle loading state: show a skeleton or spinner.
-9. Handle wallet disconnected: show a prompt to connect wallet.
-10. Make rows clickable — clicking a row should set a selectedReceipt state (used by the receipt verification subtask 8005). Use a callback prop or React context for cross-component communication.
-11. Style the table with dark theme: `bg-solana-card` background, subtle row hover effects, solana-purple header accents.
+1. Create `tests/tsconfig.json` extending the root tsconfig with test-specific settings (mocha globals, chai types).
+2. Create `tests/helpers/index.ts` exporting all helper functions:
+   a. `createFundedWallet(connection, lamports?)`: generates a new Keypair, airdrops SOL, returns the funded wallet.
+   b. `mintTestUsdc(connection, authority, recipient, amount)`: creates a USDC-like SPL token mint (or uses existing devnet USDC), mints specified amount to recipient's ATA. Handles ATA creation if needed.
+   c. `findPda(seeds, programId)`: wrapper around PublicKey.findProgramAddressSync for cleaner test code. Include specific PDA finders: findOperatorPda(), findCustomerPda(customer), findTaskReceiptPda(taskId, customer), findAgentPackagePda(packageId).
+   d. `fetchAccount(program, accountType, pda)`: typed account fetch with null handling.
+   e. `assertError(fn, errorCode)`: executes async fn, asserts it throws AnchorError with expected error code string. Provides clear failure messages.
+   f. `sleep(ms)`: promisified setTimeout for timing-sensitive tests.
+3. Create `tests/fixtures/sample-receipt.json`: a sample itemized receipt JSON matching the expected Arweave schema.
+4. Create `tests/fixtures/test-constants.ts`: shared test values (default caps, deposit amounts, task IDs, package IDs) to avoid magic numbers.
+5. Verify `anchor.workspace.CtoBilling` loads correctly in a minimal test file.
+6. Configure mocha-junit-reporter in `.mocharc.yml` for CI output alongside spec reporter for local dev.
 </implementation_plan>
 
 <validation>
-Connect wallet on devnet. If TaskReceipt accounts exist on-chain, verify they render in the DataTable with correct columns and formatting. Verify quality badges show green for qualityMet=true and red for false. Verify the table is sorted newest-first. Verify empty state message shows when no receipts exist. Verify loading spinner appears during initial fetch. Verify polling refreshes data (create a new receipt on-chain and confirm it appears within the polling interval). Verify clicking a row highlights it or triggers selection callback.
+Run a minimal test file that imports all helpers and verifies: createFundedWallet returns a keypair with SOL balance > 0, mintTestUsdc creates tokens in the recipient's ATA, findPda returns deterministic addresses, assertError correctly catches and validates Anchor errors. All helpers compile without TypeScript errors.
 </validation>

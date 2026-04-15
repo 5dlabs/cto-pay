@@ -4,19 +4,22 @@ You are rex working on subtask 5001 of task 5.
 
 <context>
 <scope>
-Create the new Rust crate at crates/settlement-sidecar/ with Cargo.toml, main.rs entry point, and SidecarConfig struct that loads all settings from environment variables.
+Add all required Solana ecosystem crates to the controller's Cargo.toml so that subsequent billing module subtasks can compile. This includes solana-sdk, solana-client, anchor-client (or equivalent), and sha2 for receipt hashing.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `crates/settlement-sidecar/Cargo.toml` with dependencies: solana-sdk 1.18.x, solana-client, redis (with `tokio-comp` feature), tokio (full features), serde/serde_json, sha2, tracing, tracing-subscriber (with json feature). Add workspace membership if applicable.
-2. Implement `src/config.rs` with `SidecarConfig` struct containing all fields: solana_rpc_url, operator_keypair_path, program_id, redis_url, stream_name, consumer_group, consumer_name, max_retries, retry_base_delay_ms, confirm_timeout_secs.
-3. Implement `SidecarConfig::from_env()` that reads each field from environment variables (e.g., `SOLANA_RPC_URL`, `OPERATOR_KEYPAIR_PATH`, etc.) with sensible defaults for stream_name (`cto:settlements`), consumer_group (`settlement-sidecar`), max_retries (5), retry_base_delay_ms (1000), confirm_timeout_secs (30). Use hostname for consumer_name default.
-4. Implement operator keypair loading from the JSON file path specified in config.
-5. Create `src/main.rs` with tokio::main that loads config, initializes tracing, and has placeholder calls for consumer startup.
-6. Define `SettlementEvent` struct in `src/types.rs` with serde Deserialize: task_id, customer (Pubkey), amount (u64), receipt_hash ([u8; 32]), quality_met (bool), agent_package_id (Option<String>), agent_author (Option<Pubkey>), event_type (settle_task | refund_task).
+1. Open `crates/controller/Cargo.toml`.
+2. Add under `[dependencies]`:
+   - `solana-sdk = "1.18"` — keypair loading, transaction types, Pubkey, Signature.
+   - `solana-client = "1.18"` — RpcClient for sending transactions.
+   - `anchor-client = "0.30"` — Anchor IDL-based instruction building (or omit if using raw RPC and add `borsh = "1"` for manual serialization).
+   - `sha2 = "0.10"` — SHA-256 hashing for receipt verification.
+3. Add a `billing` feature flag in `[features]`: `billing = ["dep:solana-sdk", "dep:solana-client", "dep:anchor-client", "dep:sha2"]` to allow conditional compilation.
+4. Run `cargo check -p controller --features billing` to verify dependency resolution and no version conflicts with existing workspace crates.
+5. If anchor-client pulls in conflicting tokio or borsh versions, pin compatible versions or switch to raw RPC approach.
 </implementation_plan>
 
 <validation>
-Run `cargo check -p settlement-sidecar` — compiles without errors. Unit test: set environment variables programmatically, call SidecarConfig::from_env(), verify all fields populated correctly. Unit test: deserialize a known SettlementEvent JSON string and verify all fields match expected values.
+Run `cargo check -p controller --features billing` — resolves all dependencies with zero errors. Run `cargo tree -p controller` — confirms solana-sdk 1.18.x, solana-client 1.18.x, sha2 0.10.x are in the dependency tree. Without the `billing` feature, `cargo check -p controller` still passes (no regressions).
 </validation>

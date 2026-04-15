@@ -1,30 +1,21 @@
 <identity>
-You are tess working on subtask 3001 of task 3.
+You are rex working on subtask 3001 of task 3.
 </identity>
 
 <context>
 <scope>
-Set up the complete test infrastructure in tests/cto-billing.ts including all helper functions, PDA derivation utilities, keypair generation, Anchor workspace initialization, and the test:ci npm script. This is the foundation all test groups depend on.
+Create the Anchor account structures for AgentPackage and TaskReceipt PDAs, along with the TaskStatus enum with Borsh serialization, in the program's state module.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `tests/cto-billing.ts` with Anchor test harness using `anchor.workspace.CtoBilling` and `@coral-xyz/anchor` Provider.
-2. Implement helper functions:
-   - `createMockMint(decimals=6)` — creates a new SPL token mint with the operator as mint authority.
-   - `createAta(owner: PublicKey, mint: PublicKey)` — creates an associated token account.
-   - `mintTo(ata: PublicKey, amount: number)` — mints tokens to a given ATA.
-   - `derivePackagePda(packageId: string)` — derives PDA using seeds ['package', packageId] with SHA-256 consistent with on-chain logic (D2).
-   - `deriveCustomerPda(customer: PublicKey)` — derives PDA using seeds ['customer', customer.toBytes()].
-   - `deriveReceiptPda(taskId: string)` — derives PDA using seeds ['receipt', taskId].
-   - `deriveVaultPda(mint: PublicKey)` — derives PDA using seeds ['vault', mint.toBytes()].
-   - `airdropSol(pubkey: PublicKey, amount: number)` — airdrop SOL for transaction fees.
-3. Generate test keypairs at module scope: operator, customer, author, second_customer, second_author.
-4. Add a top-level `before()` hook that airdrops SOL to all keypairs and creates the mock USDC mint.
-5. Add `test:ci` script to `package.json`: `"test:ci": "anchor test -- --timeout 60000"`.
-6. Verify PDA derivation helpers produce deterministic results by deriving the same PDA twice and asserting equality.
+1. In `programs/cto-billing/src/state/`, create `agent_package.rs` defining the `AgentPackage` account struct with fields: package_id (String, max 64), author (Pubkey), split_bps (u16), source_uri (String, max 256), total_earned (u64), task_count (u64), success_count (u64), registered_at (i64), active (bool). Add `#[account]` derive macro. Define SEED_PREFIX as `b"agent_package"`. Calculate and document the account size as a const: 8 (discriminator) + (4+64) + 32 + 2 + (4+256) + 8 + 8 + 8 + 8 + 1 = 403 bytes, round up to 408 for alignment safety.
+2. Create `task_receipt.rs` defining the `TaskReceipt` account struct with fields: task_id (String, max 64), customer (Pubkey), amount (u64), author_earned (u64), quality_met (bool), agent_package (Option<Pubkey>), receipt_hash ([u8; 32]), operator (Pubkey), settled_at (i64), status (TaskStatus). Size: 8 + (4+64) + 32 + 8 + 8 + 1 + (1+32) + 32 + 32 + 8 + 1 = 231 bytes, round to 240.
+3. Define `TaskStatus` enum in `task_receipt.rs` with variants: Settled = 0, Refunded = 1, Disputed = 2. Derive `AnchorSerialize`, `AnchorDeserialize`, `Clone`, `PartialEq`, `Eq`. Implement Default as Settled.
+4. Export both modules from `state/mod.rs`. Ensure PDA seed constants are public and documented with comments specifying the seed pattern.
+5. Run `anchor build` to verify the new account types compile and the discriminators are generated.
 </implementation_plan>
 
 <validation>
-Run `npx ts-node -e "require('./tests/cto-billing')"` to verify the file parses without syntax errors. Verify all helper functions are exported or accessible. Verify `npm run test:ci` command exists in package.json. Manually confirm PDA derivation helpers match expected seeds format by logging derived addresses for known inputs.
+Run `anchor build` — compiles without errors. Verify the IDL JSON includes AgentPackage and TaskReceipt account types with all specified fields and correct types. Verify TaskStatus enum appears in the IDL with three variants. Confirm account size constants match hand-calculated values by writing a Rust compile-time assertion (`const_assert!`).
 </validation>

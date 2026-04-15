@@ -4,24 +4,14 @@ You are rex working on subtask 2006 of task 2.
 
 <context>
 <scope>
-Write and execute all 8 test cases covering settle_task (3 cases, caps, pause, duplicate) and refund_task as specified in the test strategy.
+Implement deposit (customer ATA → program vault) and withdraw (program vault → customer ATA) instructions with SPL token transfer_checked, pause checks, and balance tracking.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create or extend test file `tests/settlement.ts`.
-2. Setup: Reuse program initialization from Task 1 tests. Create operator, customer, agent author wallets. Mint mock USDC. Create ATAs for treasury, customer, author. Initialize operator config. Create customer account with caps.
-3. Test 1 — Settle no agent package: Deposit 100 USDC. Call settle_task(task_id='T-001', amount=10_000_000, receipt_hash, quality_met=true) with no agent package. Assert customer balance == 90_000_000, treasury_ata balance += 10_000_000, TaskReceipt.amount == 10_000_000, .author_earned == 0.
-4. Test 2 — Settle with agent package, quality_met=true: Register agent package split_bps=3000. Deposit 100 USDC (fresh customer or use remaining balance). Settle task_id='T-002' for 10_000_000 with agent package. Assert author_ata += 3_000_000, treasury += 7_000_000, customer balance -= 10_000_000, AgentPackage.total_earned == 3_000_000, .success_count == 1.
-5. Test 3 — Settle with agent package, quality_met=false: Settle task_id='T-003' with quality_met=false. Assert customer balance unchanged, no transfers, TaskReceipt.amount == 0, AgentPackage.task_count incremented, success_count unchanged.
-6. Test 4 — Refund: Use TaskReceipt from Test 1. Call refund_task. Assert customer balance += 10_000_000 (restored), treasury -= 10_000_000, TaskReceipt.status == Refunded.
-7. Test 5 — ExceedsPerTaskCap: Set max_per_task=5_000_000. Attempt settle for 10_000_000. Expect ExceedsPerTaskCap error.
-8. Test 6 — ExceedsDailyCap: Set max_per_day=15_000_000. Settle 10_000_000 successfully. Attempt second settle for 10_000_000. Expect ExceedsDailyCap error.
-9. Test 7 — ProgramPaused: Call pause(). Attempt settle_task. Expect ProgramPaused error. Call unpause() for cleanup.
-10. Test 8 — Duplicate task_id: Settle task_id='T-DUP'. Attempt second settle with same task_id='T-DUP'. Expect PDA-already-exists error.
-11. Run all 8 tests with `anchor test`.
+1. Create `deposit.rs`: Define `Deposit` accounts struct — customer (Signer), customer_balance (mut, has_one = customer), customer_ata (mut, token::authority = customer, token::mint = usdc_mint), vault (mut, token::authority = vault_authority PDA seeds [b"vault"]), vault_authority (PDA seeds [b"vault"]), usdc_mint, operator_config (to check paused), token_program. Args: amount (u64). Handler: require!(!operator_config.paused, ProgramPaused), require!(amount > 0, InvalidAmount), call transfer_checked from customer_ata to vault for amount with usdc_mint decimals (6), increment customer_balance.balance and total_deposited using checked_add. 2. Create `withdraw.rs`: Define `Withdraw` accounts struct — same pattern but vault_authority needs bump for PDA signing. Handler: require!(!operator_config.paused, ProgramPaused), require!(amount > 0, InvalidAmount), require!(customer_balance.balance >= amount, InsufficientBalance), CPI transfer_checked from vault to customer_ata signed by vault_authority PDA, decrement customer_balance.balance. 3. Initialize vault token account in initialize_operator or as a separate init_vault instruction if the vault doesn't exist yet — decide on creation strategy. 4. Register both instructions. 5. Call maybe_reset_daily_spending in both deposit/withdraw paths (needed for withdraw to track against daily caps if applicable).
 </implementation_plan>
 
 <validation>
-Execute `anchor test` — all 8 tests pass with green checkmarks. Total execution time < 30 seconds on local validator. Each test verifies on-chain account state after the instruction, not just transaction success. Error cases verify the specific Anchor error code returned.
+Deposit 1000 USDC — customer_balance.balance = 1000, vault SPL balance = 1000, customer ATA decreased by 1000. Deposit 0 fails with InvalidAmount. Deposit while paused fails with ProgramPaused. Withdraw 500 — customer_balance.balance = 500, customer ATA increased by 500, vault decreased by 500. Withdraw more than balance fails with InsufficientBalance. Withdraw while paused fails with ProgramPaused. Multiple deposits accumulate correctly via checked_add.
 </validation>

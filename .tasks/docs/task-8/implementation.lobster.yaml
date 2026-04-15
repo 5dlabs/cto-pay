@@ -1,11 +1,11 @@
 name: implement-task-8
 metadata:
   task_id: 8
-  agent: blaze
-  stack: React/Next.js 14/TypeScript/shadcn-ui
+  agent: tess
+  stack: Test Frameworks
   cli: Claude Code
   model: claude-opus-4-6-20260205
-  depends_on_tasks: [7]
+  depends_on_tasks: [2, 3, 4]
 
 args:
   task_dir: {}
@@ -13,7 +13,7 @@ args:
   branch_name:
     default: "task-8/feature-branch"
   agent:
-    default: "blaze"
+    default: "tess"
   cli:
     default: "Claude Code"
   model:
@@ -43,10 +43,10 @@ steps:
     depends_on: [implement-subtask-8001]
     retry: { max: "${max_quality_retries}" }
     command: >
-      cd work && bun tsc --noEmit && bun test && bun lint
+      cd work && echo "No type checker configured" && echo "No test runner configured" && echo "No linter configured"
 
   - id: implement-subtask-8002
-    depends_on: [setup]
+    depends_on: [validate-subtask-8001]
     retry: { max: "${max_implementation_retries}" }
     command: >
       ${cli} -p "$(cat ${task_dir}/subtasks/task-8.8002/prompt.md)" --model ${model}
@@ -55,10 +55,10 @@ steps:
     depends_on: [implement-subtask-8002]
     retry: { max: "${max_quality_retries}" }
     command: >
-      cd work && bun tsc --noEmit && bun test && bun lint
+      cd work && echo "No type checker configured" && echo "No test runner configured" && echo "No linter configured"
 
   - id: implement-subtask-8003
-    depends_on: [validate-subtask-8002]
+    depends_on: [validate-subtask-8001]
     retry: { max: "${max_implementation_retries}" }
     command: >
       ${cli} -p "$(cat ${task_dir}/subtasks/task-8.8003/prompt.md)" --model ${model}
@@ -67,10 +67,10 @@ steps:
     depends_on: [implement-subtask-8003]
     retry: { max: "${max_quality_retries}" }
     command: >
-      cd work && bun tsc --noEmit && bun test && bun lint
+      cd work && echo "No type checker configured" && echo "No test runner configured" && echo "No linter configured"
 
   - id: implement-subtask-8004
-    depends_on: [setup]
+    depends_on: [validate-subtask-8001]
     retry: { max: "${max_implementation_retries}" }
     command: >
       ${cli} -p "$(cat ${task_dir}/subtasks/task-8.8004/prompt.md)" --model ${model}
@@ -79,7 +79,7 @@ steps:
     depends_on: [implement-subtask-8004]
     retry: { max: "${max_quality_retries}" }
     command: >
-      cd work && bun tsc --noEmit && bun test && bun lint
+      cd work && echo "No type checker configured" && echo "No test runner configured" && echo "No linter configured"
 
   - id: implement-subtask-8005
     depends_on: [validate-subtask-8001]
@@ -91,10 +91,58 @@ steps:
     depends_on: [implement-subtask-8005]
     retry: { max: "${max_quality_retries}" }
     command: >
-      cd work && bun tsc --noEmit && bun test && bun lint
+      cd work && echo "No type checker configured" && echo "No test runner configured" && echo "No linter configured"
+
+  - id: implement-subtask-8006
+    depends_on: [validate-subtask-8001]
+    retry: { max: "${max_implementation_retries}" }
+    command: >
+      ${cli} -p "$(cat ${task_dir}/subtasks/task-8.8006/prompt.md)" --model ${model}
+
+  - id: validate-subtask-8006
+    depends_on: [implement-subtask-8006]
+    retry: { max: "${max_quality_retries}" }
+    command: >
+      cd work && echo "No type checker configured" && echo "No test runner configured" && echo "No linter configured"
+
+  - id: implement-subtask-8007
+    depends_on: [validate-subtask-8001]
+    retry: { max: "${max_implementation_retries}" }
+    command: >
+      ${cli} -p "$(cat ${task_dir}/subtasks/task-8.8007/prompt.md)" --model ${model}
+
+  - id: validate-subtask-8007
+    depends_on: [implement-subtask-8007]
+    retry: { max: "${max_quality_retries}" }
+    command: >
+      cd work && echo "No type checker configured" && echo "No test runner configured" && echo "No linter configured"
+
+  - id: implement-subtask-8008
+    depends_on: [validate-subtask-8001]
+    retry: { max: "${max_implementation_retries}" }
+    command: >
+      ${cli} -p "$(cat ${task_dir}/subtasks/task-8.8008/prompt.md)" --model ${model}
+
+  - id: validate-subtask-8008
+    depends_on: [implement-subtask-8008]
+    retry: { max: "${max_quality_retries}" }
+    command: >
+      cd work && echo "No type checker configured" && echo "No test runner configured" && echo "No linter configured"
+
+  - id: implement-subtask-8009
+    depends_on: [validate-subtask-8002, validate-subtask-8003, validate-subtask-8004, validate-subtask-8005, validate-subtask-8006, validate-subtask-8007, validate-subtask-8008]
+    retry: { max: "${max_implementation_retries}" }
+    command: >
+      ${cli} -p "$(cat ${task_dir}/subtasks/task-8.8009/prompt.md)" --model ${model}
+
+  - id: validate-subtask-8009
+    depends_on: [implement-subtask-8009]
+    retry: { max: "${max_quality_retries}" }
+    command: >
+      cd work && echo "No type checker configured" && echo "No test runner configured" && echo "No linter configured"
 
   - id: integration-validation
-    depends_on: [validate-subtask-8001, validate-subtask-8002, validate-subtask-8003, validate-subtask-8004, validate-subtask-8005]
+    depends_on: [validate-subtask-8001, validate-subtask-8002, validate-subtask-8003, validate-subtask-8004, validate-subtask-8005, validate-subtask-8006, validate-subtask-8007, validate-subtask-8008, validate-subtask-8009]
     command: >
       cd work && bun tsc --noEmit && bun test --run && bun lint
 

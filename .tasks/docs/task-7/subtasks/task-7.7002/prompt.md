@@ -4,19 +4,22 @@ You are blaze working on subtask 7002 of task 7.
 
 <context>
 <scope>
-Set up the custom Tailwind CSS theme with Solana-specific brand colors, dark mode class strategy, Inter font, and map accent colors to shadcn CSS variables in globals.css.
+Create all reusable UI components (Header, BalanceCard, ReceiptTable, AgentCard, QualityBadge, SolanaExplorerLink, UsdcAmount) and configure the dark theme Tailwind styling for hackathon demo presentation quality.
 </scope>
 </context>
 
 <implementation_plan>
-1. Edit `tailwind.config.ts` to set `darkMode: 'class'`.
-2. Extend the theme colors with: `'solana-purple': '#9945FF'`, `'solana-green': '#14F195'`, `'solana-dark': '#0E0E1A'`, `'solana-card': '#1A1A2E'`.
-3. Edit `src/app/globals.css` to map shadcn CSS variables in the `:root` and `.dark` selectors. Set primary to solana-purple (#9945FF), accent/success to solana-green (#14F195), background to solana-dark (#0E0E1A), card to solana-card (#1A1A2E).
-4. Import Inter font from `next/font/google` and apply it to the body.
-5. Ensure the `<html>` element has `class='dark'` by default in layout.tsx (just the class, not the full layout — that comes in 7004).
-6. Create a test page or component that renders sample text, buttons, and cards using the custom colors to visually verify the theme.
+1. Configure `tailwind.config.ts` with dark theme as default: dark color palette suitable for hackathon demo (deep backgrounds, vibrant accents). Set up custom color tokens.
+2. Create `src/components/Header.tsx`: wallet connect button (using @solana/wallet-adapter-react-ui WalletMultiButton), network indicator badge (devnet/mainnet), navigation links to /, /receipts, /agents, /deposit, /withdraw. Responsive layout.
+3. Create `src/components/BalanceCard.tsx`: displays balance, total_deposited, total_spent, task_count. Props accept CustomerBalance account data. Formats USDC amounts.
+4. Create `src/components/ReceiptTable.tsx`: table component accepting array of TaskReceipt data. Columns: task_id, amount (USDC), author_earned, quality_met, agent_package, settled_at, status. Each row clickable linking to detail. Supports empty state.
+5. Create `src/components/AgentCard.tsx`: card displaying package_id, author (truncated pubkey with copy button), split_bps as %, total_earned, task_count, success_rate, active badge, source_uri link.
+6. Create `src/components/QualityBadge.tsx`: green checkmark icon for quality_met=true, red X for false. Uses lucide-react icons.
+7. Create `src/components/SolanaExplorerLink.tsx`: generates explorer.solana.com URL for a given address/tx with correct cluster param. Opens in new tab.
+8. Create `src/components/UsdcAmount.tsx`: formats u64 lamport-based amounts to human-readable USDC (divide by 10^6, add $ prefix, 2 decimal places).
+9. Add global styles in `src/app/globals.css` for consistent dark theme baseline.
 </implementation_plan>
 
 <validation>
-Visually verify at http://localhost:3000 that the page background is #0E0E1A (solana-dark). Create a temporary test div with `bg-solana-purple` and `text-solana-green` classes and confirm they render correctly. Verify Inter font loads by inspecting computed styles in browser DevTools. Confirm shadcn Button component renders with solana-purple primary color.
+Each component renders without errors when imported into a test page with mock data. BalanceCard displays '100.00 USDC' when passed balance=100_000_000. UsdcAmount formats 1_500_000 as '$1.50'. QualityBadge shows green check for true and red X for false. SolanaExplorerLink generates correct URL with devnet cluster. Header shows wallet connect button and all navigation links.
 </validation>

@@ -1,74 +1,35 @@
 <identity>
-You are rex working on subtask 4002 of task 4.
+You are nova working on subtask 4002 of task 4.
 </identity>
 
 <context>
 <scope>
-Define the SettlementEvent struct with EventType enum in billing/event.rs and the ReceiptJson struct with CostLineItem in billing/receipt.rs, both with full Serialize/Deserialize derives and feature gating.
+Build the core uploader module: createIrysClient for Solana wallet integration, uploadReceipt with canonical JSON + SHA-256 + Irys tagging, verifyReceipt for hash comparison, and fundIrysNode for devnet upload credits.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `crates/controller/src/billing/event.rs`:
-   ```rust
-   use serde::{Serialize, Deserialize};
-
-   #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-   #[serde(rename_all = "snake_case")]
-   pub enum EventType {
-       Settle,
-       Refund,
-   }
-
-   #[derive(Debug, Clone, Serialize, Deserialize)]
-   pub struct SettlementEvent {
-       pub task_id: String,
-       pub customer_pubkey: String,
-       pub amount_usdc_lamports: u64,
-       pub receipt_hash: [u8; 32],
-       pub receipt_url: String,
-       pub agent_package_id: Option<String>,
-       pub quality_met: bool,
-       pub event_type: EventType,
-       pub coderun_name: String,
-       pub timestamp: i64,
-   }
-   ```
-
-2. Create `crates/controller/src/billing/receipt.rs`:
-   ```rust
-   use serde::{Serialize, Deserialize};
-
-   #[derive(Debug, Clone, Serialize, Deserialize)]
-   pub struct CostLineItem {
-       pub description: String,
-       pub amount_usdc: f64,
-   }
-
-   #[derive(Debug, Clone, Serialize, Deserialize)]
-   pub struct ReceiptJson {
-       pub task_id: String,
-       pub customer: String,
-       pub coderun_name: String,
-       pub duration_seconds: u64,
-       pub infra_tier: String,
-       pub provider: String,
-       pub agent_used: String,
-       pub itemized_costs: Vec<CostLineItem>,
-       pub total_usdc: f64,
-       pub timestamp: String,  // ISO 8601
-   }
-   ```
-   Add a method `ReceiptJson::to_json_bytes(&self) -> serde_json::Result<Vec<u8>>` for serialization.
-   Add a method `ReceiptJson::compute_sha256(&self) -> [u8; 32]` that serializes to canonical JSON then hashes with sha2.
-
-3. Add a helper function to compute billing amount: `pub fn compute_billing_amount(duration_seconds: u64, tier: &str) -> u64` that returns USDC lamports based on tier rates. Use constants for rates (STANDARD_RATE_USDC_LAMPORTS, etc.).
-
-4. Write unit tests in each module:
-   - `event.rs`: Serde round-trip test for SettlementEvent (serialize then deserialize, assert equality).
-   - `receipt.rs`: Build a known ReceiptJson, serialize, compute SHA-256, assert against precomputed hash. Test `compute_billing_amount` for standard tier (120s → expected lamport value).
+1. Create `src/uploader.ts`:
+   - `createIrysClient(solanaKeypair: Keypair, rpcUrl: string, irysNode?: string): Promise<Irys>`: Initialize Irys SDK with the Solana wallet. Use `@irys/sdk` constructor with `token: 'solana'`, `key: solanaKeypair.secretKey`, `config: { providerUrl: rpcUrl }`. Default irysNode to `https://devnet.irys.xyz`. Return the initialized client.
+   - `uploadReceipt(client: Irys, receipt: TaskReceipt): Promise<{ txId: string; hash: Uint8Array; arweaveUrl: string }>`:
+     a. Import `canonicalJsonSerialize` and `computeSha256` from utils.
+     b. Serialize receipt: `const jsonStr = canonicalJsonSerialize(receipt as unknown as Record<string, unknown>)`.
+     c. Convert to bytes: `const jsonBytes = new TextEncoder().encode(jsonStr)`.
+     d. Compute hash: `const hash = computeSha256(jsonBytes)`.
+     e. Define tags array: `[{ name: 'Content-Type', value: 'application/json' }, { name: 'App-Name', value: 'cto-billing' }, { name: 'Task-Id', value: receipt.task_id }, { name: 'Version', value: '1' }]`.
+     f. Upload: `const response = await client.upload(Buffer.from(jsonBytes), { tags })`.
+     g. Return `{ txId: response.id, hash, arweaveUrl: 'https://arweave.net/' + response.id }`.
+   - `verifyReceipt(arweaveUrl: string, expectedHash: Uint8Array): Promise<boolean>`:
+     a. Fetch receipt: `const response = await fetch(arweaveUrl)`.
+     b. Get body as bytes: `const body = new Uint8Array(await response.arrayBuffer())`.
+     c. Compute SHA-256 of body.
+     d. Compare byte-by-byte with expectedHash, return boolean.
+2. Create `src/fund.ts`:
+   - `fundIrysNode(client: Irys, amountInLamports: number): Promise<void>`: Call `await client.fund(amountInLamports)`. Log the funded amount and remaining balance. This is needed before uploads on devnet.
+3. Update `src/index.ts` to re-export all functions from `uploader.ts` and `fund.ts`: `createIrysClient`, `uploadReceipt`, `verifyReceipt`, `fundIrysNode`.
+4. Create `scripts/test-upload.ts` as a standalone Bun script: load a keypair from env or file, create client, fund if needed, upload a sample receipt, log txId and arweaveUrl, verify the upload. This serves as a manual smoke test.
 </implementation_plan>
 
 <validation>
-Run `cargo test --features solana-billing` — tests pass for: (1) SettlementEvent serializes to valid JSON and deserializes back with all fields intact, (2) ReceiptJson SHA-256 computation for a known receipt produces a deterministic, precomputed 32-byte hash, (3) compute_billing_amount(120, "standard") returns expected USDC lamport value (e.g., 750_000 for $0.75). All tests are gated behind #[cfg(test)] and #[cfg(feature = "solana-billing")].
+Import all exported functions — TypeScript compiles without errors. `createIrysClient` with a devnet keypair and RPC URL returns an Irys instance without throwing. `uploadReceipt` with a mock/stub Irys client (for unit testing) calls the client's upload method with correct tags and buffer. `verifyReceipt` with a known Arweave URL returns the expected boolean. `scripts/test-upload.ts` runs end-to-end on devnet when given a funded keypair.
 </validation>

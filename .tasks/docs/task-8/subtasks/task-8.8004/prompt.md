@@ -1,30 +1,24 @@
 <identity>
-You are blaze working on subtask 8004 of task 8.
+You are tess working on subtask 8004 of task 8.
 </identity>
 
 <context>
 <scope>
-Create the AgentPackage listing component that fetches and displays all registered agent packages with author address, split percentage, total earned, computed success rate, and active status badge.
+Write the agent package registry test suite covering package registration, invalid split_bps validation, duplicate package prevention, author-only updates, unauthorized update rejection, and package deactivation.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `src/components/AgentPackageList.tsx` as a client component.
-2. Use `useProgram()` to fetch all AgentPackage accounts: `program.account.agentPackage.all()`.
-3. Display as a list of shadcn `Card` components or as a secondary DataTable. Each item shows:
-   - `packageId`: displayed as a title or heading.
-   - `author`: shortened PublicKey via `shortenAddress()` with copy-to-clipboard on click.
-   - `splitBps`: displayed as percentage (e.g., `splitBps / 100`% → '15%').
-   - `totalEarned`: formatted via `formatUsdc()`.
-   - Success rate: computed as `(successCount / taskCount * 100).toFixed(1)%`. Handle zero taskCount (show 'N/A' or '—').
-   - `active`: shadcn Badge — green 'Active' or gray 'Inactive'.
-4. Sort packages by totalEarned descending by default.
-5. Handle empty state: 'No agent packages registered yet'.
-6. Handle loading state with card skeletons.
-7. Place this component either in a separate tab within the right panel (using shadcn `Tabs` alongside the balance card) or below the balance card in the right panel — whichever fits better within the 40% panel at 1920×1080.
-8. Style with dark theme: bg-solana-card cards, subtle borders, solana-purple accents for headings.
+1. Create `tests/03-agent-package.test.ts` with describe block 'Agent Package Registry'.
+2. Before-all: initialize operator, create funded author wallet.
+3. Test: 'registers package' — call register_package with package_id='test-pkg-1', split_bps=3000, source_uri='https://github.com/test'. Assert PDA created with correct fields, task_count=0, success_count=0, total_earned=0, active=true.
+4. Test: 'fails to register with split_bps > 10000' — call register_package with split_bps=10001. Assert InvalidSplitBps or similar error.
+5. Test: 'fails to register duplicate package_id' — call register_package with same package_id='test-pkg-1'. Assert error (PDA already exists).
+6. Test: 'updates package by author' — call update_package with new split_bps=5000, new source_uri. Assert fields updated on-chain.
+7. Test: 'fails to update package by non-author' — create different wallet, call update_package signed by non-author. Assert Unauthorized error.
+8. Test: 'deactivates package' — call deactivate_package (or update with active=false). Assert active=false on-chain.
 </implementation_plan>
 
 <validation>
-Connect wallet on devnet. If AgentPackage accounts exist, verify they render with correct packageId, shortened author address, split percentage, total earned, success rate, and active badge. Verify success rate calculation: for a package with taskCount=10 and successCount=8, verify '80.0%' is displayed. Verify 'N/A' shows for packages with zero taskCount. Verify copy-to-clipboard works on author address. Verify empty state message when no packages exist. Verify sorting by totalEarned descending.
+Run `anchor test --skip-build -- --grep 'Agent Package Registry'` — all 6 tests pass. Package account fields match expected values after each operation. Authorization checks correctly reject non-author signers.
 </validation>

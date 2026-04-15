@@ -1,36 +1,26 @@
 <identity>
-You are blaze working on subtask 8003 of task 8.
+You are tess working on subtask 8003 of task 8.
 </identity>
 
 <context>
 <scope>
-Create dialog/modal forms for depositing and withdrawing USDC, submit transactions via the Anchor program, show toast notifications for success/failure, and refresh the balance card after completion.
+Write the customer account test suite covering account creation, USDC deposits, zero-amount validation, withdrawals, overdraw prevention, pause-state checking, spending cap updates, and cap validation logic.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `src/components/DepositDialog.tsx` as a client component:
-   - Trigger: a 'Deposit' button on the CustomerBalanceCard (or below it).
-   - Use shadcn `Dialog` for the modal with a form containing:
-     - USDC amount input (shadcn `Input`, type number, min 0, step 0.01).
-     - Display the user's current USDC token balance (fetch via `getTokenAccountsByOwner` or `getAssociatedTokenAddress` + `getTokenAccountBalance`).
-     - 'Deposit' submit button styled with solana-purple.
-   - On submit: build and send the `deposit` instruction via `useProgram()`. Include the amount converted to lamports (multiply by 10^6 for USDC).
-   - Show a loading spinner on the button during transaction.
-   - On success: show a shadcn `toast` with 'Deposit successful' in green. Close the dialog. Call the balance refetch function.
-   - On failure: show a toast with the error message in red. Keep dialog open.
-2. Create `src/components/WithdrawDialog.tsx` similarly:
-   - Trigger: a 'Withdraw' button on the CustomerBalanceCard.
-   - Same dialog pattern with amount input.
-   - Show current on-chain balance as max withdrawable.
-   - Validate amount ≤ current balance before submission.
-   - Build and send the `withdraw` instruction.
-   - Same success/failure toast and refetch pattern.
-3. For both dialogs, use `useWallet()` to get the `sendTransaction` or use Anchor's `program.methods.deposit(...).accounts({...}).rpc()` pattern.
-4. Add the Deposit and Withdraw buttons to the CustomerBalanceCard component — either as props/callbacks or import directly.
-5. Ensure proper error handling for: wallet not connected, insufficient SOL for fees, insufficient USDC balance, program errors (e.g., paused).
+1. Create `tests/02-customer.test.ts` with describe block 'Customer Account & Escrow'.
+2. Before-all: initialize operator (reuse or create fresh), create funded customer wallet, mint 1000 test USDC to customer.
+3. Test: 'creates customer account' — call create_customer with max_per_task=100, max_per_day=500. Assert PDA exists with correct caps, balance=0, task_count=0.
+4. Test: 'deposits 100 USDC' — call deposit with amount=100_000_000 (100 USDC in lamports). Assert customer balance=100_000_000, vault token account balance=100_000_000.
+5. Test: 'fails to deposit 0' — call deposit with amount=0. Assert InvalidAmount error.
+6. Test: 'withdraws 50 USDC' — call withdraw with amount=50_000_000. Assert customer balance=50_000_000, customer ATA increased by 50 USDC.
+7. Test: 'fails to withdraw more than balance' — call withdraw with amount=999_000_000. Assert InsufficientBalance error.
+8. Test: 'fails to withdraw while paused' — pause operator, attempt withdraw. Assert ProgramPaused error. Unpause after.
+9. Test: 'updates spending caps' — call update_caps with max_per_task=200, max_per_day=1000. Assert caps updated on-chain.
+10. Test: 'fails to update caps when max_per_task > max_per_day' — call update_caps with max_per_task=1000, max_per_day=500. Assert InvalidCaps error.
 </implementation_plan>
 
 <validation>
-Connect Phantom wallet on devnet with test USDC tokens. Open Deposit dialog, enter an amount, and submit. Verify the transaction is sent (check Solana Explorer), the success toast appears, the dialog closes, and the balance card refreshes to show the new balance. Open Withdraw dialog, enter an amount within balance, submit, and verify same flow. Test error cases: enter amount exceeding USDC wallet balance for deposit — verify error toast. Enter amount exceeding on-chain balance for withdraw — verify client-side validation prevents submission. Test with wallet disconnected — verify buttons are disabled or show appropriate message.
+Run `anchor test --skip-build -- --grep 'Customer Account'` — all 8 tests pass. Token balances (customer ATA, vault) match expected values after deposits and withdrawals. Error codes match the program's defined error enum.
 </validation>

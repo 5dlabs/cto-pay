@@ -1,11 +1,11 @@
 name: implement-task-4
 metadata:
   task_id: 4
-  agent: rex
-  stack: Rust/Axum
+  agent: nova
+  stack: Bun/TypeScript
   cli: Claude Code
   model: claude-opus-4-6-20260205
-  depends_on_tasks: [1, 2]
+  depends_on_tasks: [1]
 
 args:
   task_dir: {}
@@ -13,7 +13,7 @@ args:
   branch_name:
     default: "task-4/feature-branch"
   agent:
-    default: "rex"
+    default: "nova"
   cli:
     default: "Claude Code"
   model:
@@ -36,7 +36,7 @@ steps:
   - id: scaffold-files
     depends_on: [setup]
     command: >
-      cd work && mkdir -p crates/controller crates/controller/src/billing crates/controller/src crates/controller/src/tasks/code
+      cd work && mkdir -p packages/receipt-uploader packages/receipt-uploader/src packages/receipt-uploader/scripts packages/receipt-uploader/tests
 
   - id: implement-subtask-4001
     depends_on: [scaffold-files]
@@ -48,7 +48,7 @@ steps:
     depends_on: [implement-subtask-4001]
     retry: { max: "${max_quality_retries}" }
     command: >
-      cd work && cargo check && cargo test && cargo clippy -- -D warnings
+      cd work && bun tsc --noEmit && bun test && bun lint
 
   - id: implement-subtask-4002
     depends_on: [validate-subtask-4001]
@@ -60,7 +60,7 @@ steps:
     depends_on: [implement-subtask-4002]
     retry: { max: "${max_quality_retries}" }
     command: >
-      cd work && cargo check && cargo test && cargo clippy -- -D warnings
+      cd work && bun tsc --noEmit && bun test && bun lint
 
   - id: implement-subtask-4003
     depends_on: [validate-subtask-4002]
@@ -72,34 +72,10 @@ steps:
     depends_on: [implement-subtask-4003]
     retry: { max: "${max_quality_retries}" }
     command: >
-      cd work && cargo check && cargo test && cargo clippy -- -D warnings
-
-  - id: implement-subtask-4004
-    depends_on: [validate-subtask-4002]
-    retry: { max: "${max_implementation_retries}" }
-    command: >
-      ${cli} -p "$(cat ${task_dir}/subtasks/task-4.4004/prompt.md)" --model ${model}
-
-  - id: validate-subtask-4004
-    depends_on: [implement-subtask-4004]
-    retry: { max: "${max_quality_retries}" }
-    command: >
-      cd work && cargo check && cargo test && cargo clippy -- -D warnings
-
-  - id: implement-subtask-4005
-    depends_on: [validate-subtask-4003, validate-subtask-4004]
-    retry: { max: "${max_implementation_retries}" }
-    command: >
-      ${cli} -p "$(cat ${task_dir}/subtasks/task-4.4005/prompt.md)" --model ${model}
-
-  - id: validate-subtask-4005
-    depends_on: [implement-subtask-4005]
-    retry: { max: "${max_quality_retries}" }
-    command: >
-      cd work && cargo check && cargo test && cargo clippy -- -D warnings
+      cd work && bun tsc --noEmit && bun test && bun lint
 
   - id: integration-validation
-    depends_on: [validate-subtask-4001, validate-subtask-4002, validate-subtask-4003, validate-subtask-4004, validate-subtask-4005]
+    depends_on: [validate-subtask-4001, validate-subtask-4002, validate-subtask-4003]
     command: >
       cd work && bun tsc --noEmit && bun test --run && bun lint
 

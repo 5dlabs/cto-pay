@@ -1,6 +1,6 @@
 ## Acceptance Criteria
 
-- [ ] Run `npm run demo:localnet` against a running `solana-test-validator` with the cto-billing program deployed. The script completes all 10 phases without errors in under 120 seconds. Verify specific outputs: (1) Phase 5 shows author_earned = 3.00 USDC and treasury_received = 7.00 USDC, (2) Phase 6 shows amount_charged = 0.00 and 'Quality NOT MET' message, (3) Phase 8 receipt table displays all 3 tasks with correct amounts and quality indicators, (4) Phase 9 shows withdrawal of exactly 185.00 USDC (200 deposited - 10 - 5 charged), (5) All logged Explorer links contain valid base58 transaction signatures. Run `npx tsc --noEmit` — TypeScript compilation passes with zero errors.
+- [ ] Run `bun run demo` from the `cli/` directory against Solana devnet — the script completes all 10 steps without error and exits with code 0. Verify on-chain state after execution: (1) OperatorConfig PDA exists and has correct treasury. (2) AgentPackage PDA has package_id="rex-code-agent", split_bps=3000, task_count=2, success_count=1, total_earned=3_000_000 (3 USDC). (3) CustomerBalance PDA has balance=0, total_deposited=100_000_000, total_spent=10_000_000, task_count=2. (4) TaskReceipt for TASK-001: amount=10_000_000, author_earned=3_000_000, quality_met=true. (5) TaskReceipt for TASK-002: amount=0, author_earned=0, quality_met=false. (6) Both Arweave receipt URLs are accessible and SHA-256 hashes match on-chain receipt_hash values. Full script runtime completes within 120 seconds on devnet.
 
 ## Verification Notes
 

@@ -1,30 +1,28 @@
 <identity>
-You are tess working on subtask 3003 of task 3.
+You are rex working on subtask 3003 of task 3.
 </identity>
 
 <context>
 <scope>
-Implement Mocha describe blocks for Groups 4 and 5 covering deposit, withdraw, and settle_task (without agent package) instructions, including balance verification, cumulative totals, insufficient balance errors, and TaskReceipt field validation.
+Build the two instructions for AgentPackage lifecycle: register creates a new AgentPackage PDA with author validation, and update allows the author to modify source_uri, split_bps, and active status.
 </scope>
 </context>
 
 <implementation_plan>
-1. **Group 4: Deposits & Withdrawals** — `describe('Deposits & Withdrawals', ...)`:
-   - Setup: Ensure customer account exists (from Group 2 state or create fresh one in `before` hook). Create customer ATA, mint 200 USDC to it.
-   - `it('deposits 100 USDC')`: Call deposit with amount=100_000_000. Fetch customer PDA, verify balance=100_000_000, total_deposited=100_000_000. Verify vault ATA received tokens.
-   - `it('deposits another 50 USDC')`: Call deposit with amount=50_000_000. Verify balance=150_000_000, total_deposited=150_000_000.
-   - `it('withdraws 30 USDC')`: Call withdraw with amount=30_000_000. Verify balance=120_000_000. Verify customer ATA received 30 USDC back.
-   - `it('fails withdraw exceeding balance')`: Call withdraw with amount=200_000_000. Assert InsufficientBalance error.
-   - `it('withdraws remaining balance to zero')`: Call withdraw with amount=120_000_000. Verify balance=0.
-
-2. **Group 5: Settlement — Case 1 (No Agent Package)** — `describe('Settlement - No Agent Package', ...)`:
-   - Setup: Deposit 100 USDC into customer account. Note treasury ATA balance before settlement.
-   - `it('settles TASK-001 for 15 USDC without agent package')`: Call settle_task with task_id='TASK-001', amount=15_000_000, agent_package=None, quality_met=true. Fetch customer PDA: balance=85_000_000. Fetch treasury ATA: received 15_000_000. Fetch TaskReceipt PDA by deriveReceiptPda('TASK-001'): verify task_id, amount=15_000_000, customer, author_earned=0, quality_met=true, status=Settled.
-   - `it('verifies customer counters after settlement')`: Fetch customer PDA, verify task_count=1, total_spent=15_000_000.
-
-3. All token balance checks should use `getTokenAccountBalance` and compare the `amount` string or parsed integer. Account for potential rent-exempt minimum SOL but USDC balances should be exact.
+1. Create `programs/cto-billing/src/instructions/register_agent_package.rs`:
+   - Define `RegisterAgentPackage` accounts struct: `author` (Signer, mut), `agent_package` (init, payer=author, space=AgentPackage::SIZE, seeds=[b"agent_package", package_id.as_bytes()], bump), `system_program`.
+   - Instruction args: `package_id: String`, `split_bps: u16`, `source_uri: String`.
+   - Validation: `require!(package_id.len() <= 64, PackageIdTooLong)`, `require!(source_uri.len() <= 256, SourceUriTooLong)`, `require!(split_bps <= 10000, InvalidSplitBps)`.
+   - Set all fields: author = author.key(), registered_at = Clock::get()?.unix_timestamp, active = true, total_earned = 0, task_count = 0, success_count = 0.
+2. Create `programs/cto-billing/src/instructions/update_agent_package.rs`:
+   - Define `UpdateAgentPackage` accounts struct: `author` (Signer), `agent_package` (mut, seeds=[b"agent_package", agent_package.package_id.as_bytes()], bump, has_one=author).
+   - Instruction args: `source_uri: Option<String>`, `split_bps: Option<u16>`, `active: Option<bool>`.
+   - Apply only provided fields. Same validations for source_uri length and split_bps range.
+3. Register both instructions in `lib.rs` with appropriate `#[instruction]` attributes.
+4. Export from `instructions/mod.rs`.
+5. Test: Write a basic Anchor integration test in `tests/` that registers a package with split_bps=3000, retrieves the PDA, and verifies all fields. Test that a non-author cannot call update. Test that split_bps=10001 is rejected.
 </implementation_plan>
 
 <validation>
-Run `anchor test` and verify Groups 4-5 pass: 5 tests in Group 4 (deposit 100, deposit 50, withdraw 30, withdraw fail, withdraw to zero), 2 tests in Group 5 (settle no-agent, verify counters). Total: 7 tests. Verify all USDC balances are exact to the lamport. Verify TaskReceipt PDA exists and all fields are correct.
+Run `anchor test` — register_agent_package creates a PDA with correct seeds, all fields match input (package_id, split_bps=3000, source_uri, author pubkey, active=true, counters=0, registered_at is recent timestamp). update_agent_package with new source_uri succeeds when called by author, fails with ConstraintHasOne when called by different signer. register with split_bps=10001 fails with InvalidSplitBps. register with 65-char package_id fails with PackageIdTooLong.
 </validation>

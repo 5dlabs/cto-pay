@@ -4,22 +4,28 @@ You are blaze working on subtask 7004 of task 7.
 
 <context>
 <scope>
-Create the root app layout (src/app/layout.tsx) wrapping the application with WalletProvider, ConnectionProvider, and WalletModalProvider configured for Phantom and Solflare adapters on devnet.
+Build the /deposit and /withdraw pages that allow users to deposit USDC into their CustomerBalance escrow and withdraw USDC back to their wallet, submitting Solana transactions via the wallet adapter.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create or update `src/app/layout.tsx`.
-2. Import and configure `ConnectionProvider` with endpoint defaulting to `https://api.devnet.solana.com`. Support an environment variable `NEXT_PUBLIC_RPC_ENDPOINT` for override.
-3. Import `PhantomWalletAdapter` and `SolflareWalletAdapter` from their respective packages.
-4. Create a `wallets` array with instances of both adapters.
-5. Wrap the `{children}` with the provider stack in order: `<ConnectionProvider>` → `<WalletProvider wallets={wallets} autoConnect>` → `<WalletModalProvider>` → `{children}`.
-6. Create a separate client component `src/components/WalletProviderWrapper.tsx` with 'use client' directive since wallet adapters require client-side rendering. The layout.tsx should use this wrapper.
-7. Set `<html lang='en' className='dark'>` and `<body className='bg-solana-dark text-white font-sans min-h-screen'>` with Inter font applied.
-8. Import `@solana/wallet-adapter-react-ui/styles.css` for default wallet modal styling.
-9. Ensure the wallet modal renders properly and connects to devnet when a wallet is selected.
+1. Create `src/app/deposit/page.tsx`:
+   a. Show current USDC wallet balance (fetch customer's USDC ATA balance via connection.getTokenAccountBalance).
+   b. Amount input field with USDC formatting. Max button to fill wallet balance.
+   c. On submit: build `deposit` instruction via Anchor program, amount as u64. Send transaction via wallet adapter's `sendTransaction`. Show loading spinner during confirmation.
+   d. On success: display transaction signature with SolanaExplorerLink. Refetch CustomerBalance to show updated balance.
+   e. Handle errors: insufficient USDC, transaction rejected, network errors.
+2. Create `src/hooks/useDeposit.ts`: TanStack mutation hook wrapping the deposit instruction. Handles transaction building, sending, and confirmation.
+3. Create `src/app/withdraw/page.tsx`:
+   a. Show current CustomerBalance (via useCustomerBalance hook).
+   b. Amount input with max button (max = current balance).
+   c. On submit: build `withdraw` instruction, send via wallet adapter.
+   d. On success: show tx signature with explorer link, refetch balance.
+   e. Handle errors: InsufficientBalance, ProgramPaused, etc.
+4. Create `src/hooks/useWithdraw.ts`: TanStack mutation hook for withdraw instruction.
+5. Both pages: include back navigation, clear form after success, prevent double-submit.
 </implementation_plan>
 
 <validation>
-Run `npm run dev` and verify at http://localhost:3000: page loads with dark background. Open browser React DevTools and confirm WalletProvider, ConnectionProvider, and WalletModalProvider are present in the component tree. If Phantom extension is installed, verify auto-connect behavior. If no wallet extension, verify the page still renders without errors (graceful degradation). Check browser console for zero hydration errors.
+On /deposit: enter 1 USDC, submit → Phantom popup appears, approve → transaction succeeds, explorer link shown, balance increases by 1 USDC. On /withdraw: enter 0.5 USDC, submit → transaction succeeds, balance decreases by 0.5. Entering amount greater than balance on withdraw shows appropriate error. Both pages display current balances correctly before and after transactions.
 </validation>

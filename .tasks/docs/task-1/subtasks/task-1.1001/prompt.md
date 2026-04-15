@@ -1,22 +1,17 @@
 <identity>
-You are rex working on subtask 1001 of task 1.
+You are bolt working on subtask 1001 of task 1.
 </identity>
 
 <context>
 <scope>
-Scaffold the Anchor workspace at programs/cto-billing/ with Anchor v0.30+, configure Cargo.toml dependencies, Anchor.toml settings, and lib.rs entry point with program ID placeholder and module declarations.
+Create the full Anchor workspace with directory structure, Anchor.toml, Cargo.toml, skeleton lib.rs, and placeholder directories for tests, app, and CLI.
 </scope>
 </context>
 
 <implementation_plan>
-1. Run `anchor init cto-billing` or manually create the workspace structure under `programs/cto-billing/`.
-2. Set program ID placeholder in both `lib.rs` (`declare_id!(...)`) and `Anchor.toml`.
-3. Configure Cargo.toml with dependencies: anchor-lang 0.30+, anchor-spl (for token operations), solana-program, and sha2 crate (for hash_seed).
-4. Set up module structure in lib.rs: declare `mod state;`, `mod instructions;`, `mod utils;`, `mod errors;`.
-5. Create empty module files: `state/mod.rs`, `instructions/mod.rs`, `utils/mod.rs`, `errors.rs`.
-6. Verify `anchor build` runs (even if empty) without configuration errors.
+1. Create top-level `programs/cto-billing/` directory. 2. Create `Anchor.toml` configured for Solana devnet (https://api.devnet.solana.com) with a placeholder program ID generated via `solana-keygen grind`. 3. Create `programs/cto-billing/Cargo.toml` with dependencies: anchor-lang 0.30.x, anchor-spl 0.30.x, spl-token 4.x. 4. Create `programs/cto-billing/src/lib.rs` with `declare_id!` macro using the placeholder ID and an empty `#[program]` module. 5. Create `tests/` directory with `tsconfig.json` configured for Anchor/mocha test runner and a placeholder test file that imports `@coral-xyz/anchor`. 6. Create `app/` and `cli/` placeholder directories with README.md stubs. 7. Verify `anchor build` compiles the skeleton program without errors.
 </implementation_plan>
 
 <validation>
-Run `anchor build` — the workspace compiles without configuration errors. Verify Anchor.toml has correct program name and cluster settings. Verify Cargo.toml includes anchor-lang, anchor-spl, and sha2 dependencies.
+Run `anchor build` — compilation succeeds with zero errors. Verify directory structure exists: programs/cto-billing/src/lib.rs, tests/, app/, cli/. Verify Anchor.toml contains devnet cluster URL. Verify Cargo.toml contains anchor-lang, anchor-spl, spl-token dependencies.
 </validation>

@@ -1,24 +1,48 @@
 <identity>
-You are stitch working on subtask 6001 of task 6.
+You are nova working on subtask 6001 of task 6.
 </identity>
 
 <context>
 <scope>
-Create the demo/cli/ project with all dependencies, implement PDA derivation functions matching on-chain SHA-256 logic, build Explorer link generators, and set up chalk/ora formatting helpers.
+Create the cli/ directory structure, package.json with all dependencies, TypeScript config, IDL import, and shared utility functions for wallet loading, devnet connection, SOL airdrop, and test USDC minting.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `demo/cli/` directory with `package.json` (name: cto-demo-cli, type: module), `tsconfig.json` (target: ES2022, module: NodeNext, strict: true, outDir: dist).
-2. Install dependencies: @coral-xyz/anchor, @solana/web3.js, @solana/spl-token, chalk (v5 ESM), ora, commander (for CLI arg parsing).
-3. Implement `src/cli.ts`: use commander to parse `--cluster` (localnet|devnet, default localnet) and `--keypair` (operator keypair path, default ~/.config/solana/id.json). Map cluster to RPC URL (localhost:8899 for localnet, devnet URL for devnet).
-4. Implement `src/pda.ts` with functions: `deriveOperatorConfig(programId)`, `deriveCustomerBalance(programId, customer)`, `deriveAgentPackage(programId, packageId)`, `deriveTaskReceipt(programId, taskId)`, `deriveVault(programId, mint)`. Each must use the SHA-256 hashing approach matching the on-chain program (hash relevant inputs with crypto.createHash('sha256'), use result as seed in PublicKey.findProgramAddressSync).
-5. Implement `src/utils.ts` with: `explorerLink(signature, cluster)` returning `https://explorer.solana.com/tx/${sig}?cluster=${cluster}`, `formatUsdc(lamports: number)` returning formatted string with 2 decimal places (divide by 1_000_000), `phaseHeader(num, title)` using chalk.bold for section headers.
-6. Implement `src/receipt.ts`: generate mock receipt JSON with task_id, customer pubkey, duration_seconds, infra_tier, provider, agent_used, cost breakdown object, total, ISO timestamp. Export function to compute SHA-256 hash of the JSON string as a Uint8Array for the receipt_hash parameter.
-7. Import IDL from `../../target/idl/cto_billing.json` and set up Anchor Program instance creation in a helper.
-8. Add npm scripts: `demo:localnet` (ts-node or tsx src/index.ts --cluster localnet), `demo:devnet` (tsx src/index.ts --cluster devnet).
+1. Create directory structure:
+   ```
+   cli/
+   ├── package.json
+   ├── tsconfig.json
+   ├── src/
+   │   ├── demo.ts          (entry point, stubbed)
+   │   ├── utils/
+   │   │   ├── connection.ts  (RPC connection setup)
+   │   │   ├── wallets.ts     (keypair loading/generation)
+   │   │   ├── airdrop.ts     (SOL airdrop with retry)
+   │   │   ├── usdc.ts        (test USDC mint creation and minting)
+   │   │   ├── pda.ts         (PDA derivation helpers for all account types)
+   │   │   ├── display.ts     (chalk-based colored output, explorer link formatter, table printer)
+   │   │   └── idl.ts         (IDL loading and Anchor program initialization)
+   │   └── commands/          (empty directory for subtask 6004)
+   ```
+2. `package.json` dependencies:
+   - `@coral-xyz/anchor`: "^0.30.0"
+   - `@solana/web3.js`: "^1.95.0"
+   - `@solana/spl-token`: "^0.4.0"
+   - `commander`: "^12.0.0"
+   - `chalk`: "^5.0.0"
+   - `ora`: "^8.0.0"
+   - Workspace link to receipt-uploader if monorepo, otherwise relative import.
+3. `connection.ts`: export `getConnection(rpcUrl?: string)` returning a `Connection` with `confirmed` commitment. Default to devnet.
+4. `wallets.ts`: export `loadKeypair(envVar: string, filePath?: string)` that tries env var first (base58 or JSON array), then file. Export `generateKeypair()` for ephemeral test wallets.
+5. `airdrop.ts`: export `ensureSol(connection, pubkey, minBalance=2)` that airdrops 2 SOL if balance < minBalance, with retry logic (devnet faucet can be flaky).
+6. `usdc.ts`: export `ensureUsdcMint(connection, payer)` that creates a test SPL token mint (6 decimals) if it doesn't exist, and `mintUsdc(connection, mint, payer, destination, amount)` to mint test tokens.
+7. `pda.ts`: export PDA derivation for all program accounts — `deriveOperatorConfig`, `deriveCustomerBalance`, `deriveTaskReceipt`, `deriveAgentPackage`, `deriveVault`.
+8. `display.ts`: export `explorerLink(signature: string, cluster?: string)` returning `https://explorer.solana.com/tx/{sig}?cluster=devnet`, `printStep(stepNum, title)` with colored header, `printSuccess(msg)`, `printError(msg)`.
+9. `idl.ts`: export `getProgram(connection, wallet)` that loads the IDL from `../../target/idl/cto_billing.json` and returns an initialized Anchor `Program` instance.
 </implementation_plan>
 
 <validation>
-Run `npx tsc --noEmit` — compiles with zero errors. Unit test PDA derivation: call each derive function with known inputs and verify output matches expected Pubkeys from Anchor test suite (Task 2). Unit test formatUsdc(10_000_000) returns '10.00'. Unit test explorerLink returns correctly formatted URL. Unit test receipt hash: compute hash of a fixed JSON string and verify it matches expected SHA-256 digest.
+Run `bun install` in cli/ — all dependencies resolve. Run `bun run src/utils/connection.ts` — no import errors. Verify `deriveOperatorConfig` with a known pubkey produces the expected PDA (compare against Anchor's derivation in tests). Verify `loadKeypair` reads from a test JSON file and returns a valid Keypair. Verify `ensureSol` on devnet airdrops SOL to a fresh wallet.
 </validation>

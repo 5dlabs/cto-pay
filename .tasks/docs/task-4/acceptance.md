@@ -1,6 +1,6 @@
 ## Acceptance Criteria
 
-- [ ] Run `cargo build --features solana-billing` in the controller crate — compiles with zero errors. Run `cargo test --features solana-billing` — unit tests pass for: (1) SettlementEvent serialization/deserialization round-trip, (2) ReceiptJson generation with correct SHA-256 hash computation (hash a known receipt, verify against precomputed hash), (3) Redis publisher correctly formats XADD command (mock Redis or use testcontainers with Redis), (4) Billing amount calculation from pod duration (120s) and tier (standard at $0.75/run) produces expected USDC lamport value. Run `cargo build` without the feature flag — compiles cleanly with no Solana-related code included (verify via binary size or grep).
+- [ ] Run `bun test` in `packages/receipt-uploader/` — all unit tests pass. SHA-256 of `{"task_id":"TEST-001","total_amount_usdc":10.5}` (canonical JSON) matches expected hex digest consistently across 10 runs. Integration test against Irys devnet: upload a 500-byte receipt JSON, receive a valid Arweave transaction ID (43-character base64url string), fetch the receipt from `https://arweave.net/{txId}` within 30s, recomputed SHA-256 matches the returned hash. `verifyReceipt` returns true for the uploaded receipt and false when one byte of the hash is flipped. Package builds to `dist/` with valid TypeScript declarations.
 
 ## Verification Notes
 

@@ -3,7 +3,7 @@ metadata:
   task_id: 6
   agent: tess
   phase: testing
-  stack: TypeScript/Solana-Web3.js/@coral-xyz/anchor
+  stack: Bun/TypeScript
   cli: Claude Code
   model: claude-opus-4-6-20260205
 

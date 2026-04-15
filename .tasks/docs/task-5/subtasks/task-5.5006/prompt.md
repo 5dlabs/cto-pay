@@ -4,30 +4,25 @@ You are rex working on subtask 5006 of task 5.
 
 <context>
 <scope>
-Build the multi-stage Docker image for the settlement sidecar and write an integration test that verifies the full pipeline: Redis event → Solana transaction → on-chain TaskReceipt.
+Extend the customer profile configuration to include a Solana public key mapping, so the controller can look up a customer's on-chain wallet when processing billing for their CodeRuns.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `crates/settlement-sidecar/Dockerfile`:
-   - Stage 1 (`builder`): `FROM rust:1.78-bookworm`, copy workspace Cargo.toml and crate source, `cargo build --release --bin settlement-sidecar`.
-   - Stage 2 (`runtime`): `FROM debian:bookworm-slim`, install `ca-certificates` and `libssl3` only, copy binary from builder, set `ENTRYPOINT ["./settlement-sidecar"]`.
-   - Ensure the image is minimal (< 100MB).
-2. Add `.dockerignore` excluding target/, .git/, tests/, etc.
-3. Create `tests/integration.rs` integration test:
-   a. Prerequisites check: verify `solana-test-validator` and `redis-server` are available (skip test with clear message if not).
-   b. Start `solana-test-validator` with the deployed cto-billing program (use `--bpf-program` flag with the built .so from Task 2).
-   c. Start a local Redis instance (or require it running on 6379).
-   d. Set up on-chain state: create operator config, customer balance with deposit, agent package — all via direct RPC calls using solana-sdk.
-   e. Push a `SettlementEvent` JSON to the `cto:settlements` Redis stream via XADD.
-   f. Start the sidecar binary as a subprocess with appropriate env vars pointing to local validator and Redis.
-   g. Poll for the TaskReceipt PDA on-chain (up to 15 seconds). Verify it exists with correct task_id, amount, quality_met, and receipt_hash.
-   h. Verify the Redis message was ACKed (pending count = 0 for the consumer group).
-   i. Clean up: kill sidecar subprocess, stop validator.
-4. Add a second integration test case: push an event that will cause a program error (e.g., duplicate task_id). Verify the message ends up in the DLQ stream.
-5. Ensure `cargo test --test integration` runs the integration tests (with `#[ignore]` attribute so `cargo test` without flags skips them). Add a note in README for running with `--ignored` flag.
+1. For hackathon simplicity, use namespace annotations as the wallet mapping:
+   - Annotation key: `cto.dev/solana-pubkey` — value is the customer's base58-encoded Solana pubkey.
+   - Example: `kubectl annotate namespace customer-alice cto.dev/solana-pubkey=ALiCe...`.
+2. In `crates/controller/src/tasks/code/billing.rs`, implement:
+   `async fn get_customer_wallet(client: &kube::Client, namespace: &str) -> Result<Option<Pubkey>>`
+   - Fetch the namespace resource.
+   - Read annotation `cto.dev/solana-pubkey`.
+   - Parse as `Pubkey` and return `Some(pubkey)`, or `None` if annotation is missing.
+   - Return error if annotation exists but is not a valid base58 pubkey.
+3. Add a helper `fn has_billing_wallet(coderun: &CodeRun) -> bool` that checks if the CodeRun's namespace has the annotation (for quick filtering in the reconciliation loop).
+4. Document the annotation-based approach and note that a future CRD-based CustomerProfile would replace this.
+5. If time permits, define a minimal `CustomerProfile` CRD struct with `solana_pubkey: Option<String>` field for future use, but the reconciliation loop should use the annotation approach for now.
 </implementation_plan>
 
 <validation>
-Run `docker build -t settlement-sidecar .` from the crate directory — build completes successfully. Run `docker image inspect` — verify image size < 100MB. Run `cargo test --test integration -- --ignored` with local validator and Redis running: (1) Happy path test completes in < 30 seconds — TaskReceipt exists on-chain with correct data, Redis message ACKed. (2) DLQ test — duplicate task_id event results in message in cto:settlements:dlq stream. Both tests pass with exit code 0.
+Unit test: parse a valid base58 Solana pubkey from a mock namespace annotation, verify it returns the correct Pubkey. Test that an invalid base58 string returns a descriptive error. Test that a missing annotation returns None. Integration test: create a test namespace with the annotation set, call get_customer_wallet, verify it returns the correct Pubkey.
 </validation>
