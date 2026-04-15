@@ -745,6 +745,152 @@
     }
     .dp-card:hover .dp-card__pos-text { -webkit-line-clamp: unset; }
 
+    /* DECISION SUMMARY */
+    .decision-summary-section { padding-bottom: clamp(60px, 8vh, 100px); }
+
+    .summary-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: clamp(20px, 3vw, 32px);
+    }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: auto 60px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 16px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.3s var(--ease-out-expo), border-color 0.3s var(--ease-out-expo);
+      cursor: default;
+    }
+
+    .summary-row:hover {
+      background: rgba(255,255,255,0.04);
+      border-color: var(--border);
+    }
+
+    .summary-row__cat {
+      font-family: var(--font-display);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .summary-row__id {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+
+    .summary-row__question {
+      font-size: 13px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .summary-row__outcome {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .summary-row__outcome-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .summary-row__verdict-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* EXPANDABLE REASONING */
+    .dp-card__reasoning-wrap {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.5s var(--ease-out-expo);
+    }
+
+    .dp-card__reasoning-wrap.expanded {
+      max-height: 800px;
+    }
+
+    .dp-card__reasoning {
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.04);
+      margin-top: 8px;
+    }
+
+    .dp-card__reasoning-label {
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .dp-card__reasoning-text {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    .dp-card__reasoning-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 14px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      color: var(--text-muted);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.3s var(--ease-out-expo), background 0.3s var(--ease-out-expo), border-color 0.3s var(--ease-out-expo);
+    }
+
+    .dp-card__reasoning-toggle:hover {
+      color: var(--text-secondary);
+      background: rgba(255,255,255,0.05);
+      border-color: var(--border);
+    }
+
+    .dp-card__reasoning-toggle .toggle-arrow {
+      transition: transform 0.3s var(--ease-out-expo);
+      display: inline-block;
+    }
+
+    .dp-card__reasoning-toggle.expanded .toggle-arrow {
+      transform: rotate(180deg);
+    }
+
     /* STATS */
     .stats-section { padding-bottom: clamp(60px, 8vh, 100px); }
 
@@ -817,6 +963,9 @@
     /* RESPONSIVE */
     @media (max-width: 768px) {
       .decisions-grid { grid-template-columns: 1fr; }
+      .summary-row { grid-template-columns: auto 1fr auto; }
+      .summary-row__id { display: none; }
+      .summary-row__outcome-text { max-width: 120px; }
       .stats-bar { grid-template-columns: repeat(2, 1fr); }
       .player__controls { gap: 16px; }
       .player__play-btn { width: 56px; height: 56px; }
@@ -911,14 +1060,14 @@
       </div>
     </section>
 
-    <!-- TRANSCRIPT -->
-    <section class="section transcript-section reveal" id="transcript-section">
-      <p class="section__label">Full Transcript</p>
-      <h2 class="section__title">The Deliberation</h2>
-      <div class="transcript-container glass-card" id="transcriptContainer">
-        <div class="loading-skeleton" style="height:80px;margin:12px;"></div>
-        <div class="loading-skeleton" style="height:120px;margin:12px;"></div>
-        <div class="loading-skeleton" style="height:100px;margin:12px;"></div>
+    <!-- DECISION SUMMARY -->
+    <section class="section decision-summary-section reveal" id="summary-section">
+      <p class="section__label">At a Glance</p>
+      <h2 class="section__title">Decision Summary</h2>
+      <div class="summary-grid glass-card" id="summaryGrid">
+        <div class="loading-skeleton" style="height:40px;margin:4px 0;"></div>
+        <div class="loading-skeleton" style="height:40px;margin:4px 0;"></div>
+        <div class="loading-skeleton" style="height:40px;margin:4px 0;"></div>
       </div>
     </section>
 
@@ -930,6 +1079,17 @@
         <div class="loading-skeleton" style="height:300px;border-radius:22px;"></div>
         <div class="loading-skeleton" style="height:300px;border-radius:22px;"></div>
         <div class="loading-skeleton" style="height:300px;border-radius:22px;"></div>
+      </div>
+    </section>
+
+    <!-- DETAILED DELIBERATION -->
+    <section class="section transcript-section reveal" id="transcript-section">
+      <p class="section__label">Full Transcript</p>
+      <h2 class="section__title">Detailed Deliberation</h2>
+      <div class="transcript-container glass-card" id="transcriptContainer">
+        <div class="loading-skeleton" style="height:80px;margin:12px;"></div>
+        <div class="loading-skeleton" style="height:120px;margin:12px;"></div>
+        <div class="loading-skeleton" style="height:100px;margin:12px;"></div>
       </div>
     </section>
 
@@ -1041,6 +1201,7 @@
           document.getElementById('footerSession').textContent = 'Session ' + (data.sessionId || '');
           parseDecisionPoints(data);
           renderTranscript(data);
+          renderDecisionSummary();
           renderDecisionCards();
           initSegmentTimings();
         })
@@ -1163,6 +1324,31 @@
         });
       }
 
+      /* ═══ RENDER DECISION SUMMARY ═══ */
+      function renderDecisionSummary() {
+        var grid = document.getElementById('summaryGrid');
+        grid.innerHTML = '';
+        decisionPoints.forEach(function (dp) {
+          var catClass = 'dp-card__cat--' + dp.category;
+          var catLabel = dp.category.replace(/-/g, ' ');
+          var truncQ = dp.question.length > 60 ? dp.question.substring(0, 57) + '\u2026' : dp.question;
+          var outcomeText = dp.optimistOption.length > 40 ? dp.optimistOption.substring(0, 37) + '\u2026' : dp.optimistOption;
+          var verdictIcon = dp.pessimistVerdict === 'agree' ? '\u2713' : '\u2717';
+          var verdictColor = dp.pessimistVerdict === 'agree' ? 'var(--optimist)' : 'var(--pessimist)';
+          var row = document.createElement('div');
+          row.className = 'summary-row';
+          row.innerHTML =
+            '<span class="summary-row__cat ' + catClass + '">' + catLabel + '</span>' +
+            '<span class="summary-row__id">' + dp.id.toUpperCase() + '</span>' +
+            '<span class="summary-row__question" title="' + dp.question.replace(/"/g, '&quot;') + '">' + truncQ + '</span>' +
+            '<span class="summary-row__outcome">' +
+              '<span class="summary-row__outcome-text" title="' + dp.optimistOption.replace(/"/g, '&quot;') + '">' + outcomeText + '</span>' +
+              '<span class="summary-row__verdict-icon" style="color:' + verdictColor + '">' + verdictIcon + '</span>' +
+            '</span>';
+          grid.appendChild(row);
+        });
+      }
+
       /* ═══ RENDER DECISION CARDS ═══ */
       function renderDecisionCards() {
         var grid = document.getElementById('decisionsGrid');
@@ -1172,6 +1358,24 @@
           var catLabel = dp.category.replace(/-/g, ' ');
           var pessVerdictClass = dp.pessimistVerdict === 'agree' ? 'dp-card__pos-verdict--agree' : 'dp-card__pos-verdict--disagree';
           var pessVerdictLabel = dp.pessimistVerdict === 'agree' ? '\u2713 Agrees' : '\u2717 Disputes';
+          var hasReasoning = dp.optimistReasoning || dp.pessimistReasoning;
+          var reasoningHTML = '';
+          if (hasReasoning) {
+            reasoningHTML = '<div class="dp-card__reasoning-wrap" id="reasoning-' + dp.id + '">';
+            if (dp.optimistReasoning) {
+              reasoningHTML += '<div class="dp-card__reasoning">' +
+                '<div class="dp-card__reasoning-label" style="color:var(--optimist)">\uD83D\uDFE2 Optimist Reasoning</div>' +
+                '<div class="dp-card__reasoning-text">' + dp.optimistReasoning + '</div></div>';
+            }
+            if (dp.pessimistReasoning) {
+              reasoningHTML += '<div class="dp-card__reasoning">' +
+                '<div class="dp-card__reasoning-label" style="color:var(--pessimist)">\uD83D\uDFE0 Pessimist Reasoning</div>' +
+                '<div class="dp-card__reasoning-text">' + dp.pessimistReasoning + '</div></div>';
+            }
+            reasoningHTML += '</div>' +
+              '<button class="dp-card__reasoning-toggle" data-target="reasoning-' + dp.id + '">' +
+                'Show reasoning <span class="toggle-arrow">\u2193</span></button>';
+          }
           var card = document.createElement('div');
           card.className = 'dp-card';
           card.style.transitionDelay = (i * 0.06) + 's';
@@ -1199,8 +1403,30 @@
                   '<div class="dp-card__pos-text">' + dp.pessimistOption + '</div>' +
                 '</div>' +
               '</div>' +
+              reasoningHTML +
             '</div>';
           grid.appendChild(card);
+        });
+
+        /* Toggle reasoning expand/collapse */
+        grid.addEventListener('click', function (e) {
+          var btn = e.target.closest('.dp-card__reasoning-toggle');
+          if (!btn) return;
+          var targetId = btn.getAttribute('data-target');
+          var wrap = document.getElementById(targetId);
+          if (!wrap) return;
+          var isExpanded = wrap.classList.contains('expanded');
+          if (isExpanded) {
+            wrap.classList.remove('expanded');
+            wrap.style.maxHeight = '0';
+            btn.classList.remove('expanded');
+            btn.childNodes[0].textContent = 'Show reasoning ';
+          } else {
+            wrap.classList.add('expanded');
+            wrap.style.maxHeight = wrap.scrollHeight + 'px';
+            btn.classList.add('expanded');
+            btn.childNodes[0].textContent = 'Hide reasoning ';
+          }
         });
       }
 
