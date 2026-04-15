@@ -25,7 +25,7 @@ Create a TypeScript CLI script that demonstrates the complete hackathon flow end
    - Print OperatorConfig PDA address and explorer link.
    **Step 2 — Register Agent Package (Author):**
    - Generate or load an author keypair.
-   - Call `register_agent_package` with package_id="rex-code-agent", split_bps=3000 (30%), source_uri="https://arweave.net/mock-package-hash".
+   - Call `register_agent_package` with package_id="rex-code-agent", split_bps=3000 (30%), source_uri="ar://mock-package-txid", content_hash=SHA-256 of a mock agent bundle (32 zero-padded bytes for demo, or compute from actual content).
    - Print AgentPackage PDA and author wallet.
    **Step 3 — Create Customer Account:**
    - Generate or load a customer keypair.

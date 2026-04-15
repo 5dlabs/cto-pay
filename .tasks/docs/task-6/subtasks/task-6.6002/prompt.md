@@ -23,7 +23,7 @@ Implement the first half of demo.ts covering environment setup (Step 0), operato
    - Print OperatorConfig PDA address and `explorerLink(txSig)`.
    - Use `printStep(1, "Initialize Operator")` header.
 4. **Step 2 — Register Agent Package:**
-   - Call `program.methods.registerAgentPackage("rex-code-agent", 3000, "https://arweave.net/mock-package-hash").accounts({...}).signers([author]).rpc()`.
+   - Call `program.methods.registerAgentPackage("rex-code-agent", 3000, "ar://mock-package-txid", contentHashBytes).accounts({...}).signers([author]).rpc()` where `contentHashBytes` is a `[u8; 32]` SHA-256 hash (use a deterministic mock hash for the demo).
    - Print AgentPackage PDA, author wallet, split percentage.
 5. **Step 3 — Create Customer Account:**
    - Call `program.methods.createCustomerAccount(new BN(50_000_000), new BN(200_000_000)).accounts({...}).signers([customer]).rpc()`.

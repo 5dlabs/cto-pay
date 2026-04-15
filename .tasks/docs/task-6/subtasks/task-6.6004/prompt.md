@@ -26,7 +26,7 @@ Create separate command files in cli/src/commands/ for each Solana program opera
    ```
 2. Create command files in `cli/src/commands/`:
    - `init-operator.ts`: `cto-billing init-operator --treasury <pubkey> --fee-bps <number> --keypair <path>`
-   - `register-agent.ts`: `cto-billing register-agent --package-id <string> --split-bps <number> --source-uri <string> --keypair <path>`
+   - `register-agent.ts`: `cto-billing register-agent --package-id <string> --split-bps <number> --source-uri <string> --content-hash <hex-string> --keypair <path>`
    - `create-customer.ts`: `cto-billing create-customer --max-per-task <number> --max-per-day <number> --keypair <path>`
    - `deposit.ts`: `cto-billing deposit --amount <number> --keypair <path>`
    - `settle.ts`: `cto-billing settle --task-id <string> --amount <number> --receipt <json-or-path> --quality-met --keypair <path>`

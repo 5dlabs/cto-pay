@@ -141,8 +141,22 @@ An `AgentPackage` PDA stores the author's wallet, a split percentage
 a SHA-256 content hash for integrity verification. The `source_uri`
 should be an Arweave transaction ID (`ar://...`) uploaded via Irys —
 preferred per §3a decentralized-first principle — ensuring permanent,
-tamper-proof availability. Repo URLs are acceptable during development.
+tamper-proof availability. During development, commit-pinned archive
+URLs (e.g. `https://github.com/org/repo/archive/<sha>.tar.gz`) are
+acceptable; mutable branch URLs are not.
+
+The `content_hash` is the SHA-256 of the raw bytes stored at
+`source_uri`. For Arweave, this is the exact bytes of the uploaded
+bundle. Authors should use a deterministic archive format (e.g.
+`tar --sort=name`) to ensure reproducible hashes across builds.
 Registration is permissionless — anyone can publish.
+
+> **Known limitation (hackathon scope):** `update_agent_package` allows
+> the author to change `source_uri` + `content_hash`, but historical
+> `TaskReceipt` records only reference the `AgentPackage` PDA — not the
+> specific version that ran. Post-hackathon: either make package content
+> immutable (new version = new `package_id`) or snapshot the content hash
+> into `TaskReceipt`.
 
 When a customer's task uses a public agent package, the `settle_task`
 instruction includes the package's PDA. The program uses it to route a
