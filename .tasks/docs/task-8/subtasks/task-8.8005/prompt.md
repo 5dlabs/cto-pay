@@ -1,33 +1,30 @@
 <identity>
-You are blaze working on subtask 8005 of task 8.
+You are tess working on subtask 8005 of task 8.
 </identity>
 
 <context>
 <scope>
-Create the receipt detail view that expands when a TaskReceipt row is selected in the Settlement Feed, showing the full receipt hash, on-chain Explorer link, quality_met explanation, all amounts, and transaction metadata.
+Write the comprehensive settlement test suite covering all three settlement cases (no agent package, quality met with split, quality not met), edge cases for split_bps boundaries, and all error conditions (cap violations, pause state, insufficient balance, duplicate task, inactive package, unauthorized).
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `src/components/ReceiptDetail.tsx` as a client component.
-2. Accept a `receipt: TaskReceipt | null` prop (selected from SettlementFeed).
-3. When receipt is null, show a placeholder: 'Select a settlement to view details'.
-4. When a receipt is selected, display in a shadcn `Card` or slide-over panel:
-   - **Task ID**: full string (not truncated).
-   - **Status**: large Badge with color coding per TaskStatus.
-   - **Amount breakdown**: total amount, author earned, platform fee — each formatted with `formatUsdc()` and displayed in a clear breakdown layout.
-   - **Quality Assessment**: large badge for qualityMet (green 'Quality Met ✓' / red 'Quality Not Met ✗') with prominent visual styling.
-   - **Receipt Hash**: display as hex string (convert `number[]` to hex). Truncated with a 'Copy' button.
-   - **Timestamps**: `createdAt` and `settledAt` formatted as human-readable dates.
-   - **Customer**: shortened PublicKey with copy button.
-   - **Agent Package**: shortened PublicKey with copy button.
-   - **On-chain link**: 'View on Explorer →' button that opens the receipt PDA address in a Solana block explorer (construct URL as `https://explorer.solana.com/address/{pda}?cluster=devnet` or configurable).
-5. State management: use React state in the parent page or a context to share the selected receipt between SettlementFeed (8001) and ReceiptDetail.
-6. Create a shared context or callback pattern: `src/contexts/SelectedReceiptContext.tsx` with provider in page.tsx, consumed by both SettlementFeed and ReceiptDetail.
-7. Position the ReceiptDetail component: either as a slide-over/drawer from the right, or as a section below the settlement feed in the left panel, or as a shadcn Dialog modal. Choose the approach that works best for 1920×1080 demo recording (modal is clean and focused).
-8. Add a close/dismiss action to deselect the receipt.
+1. Create `tests/04-settlement.test.ts` with describe block 'Settlement'.
+2. Before-all: initialize operator with protocol_fee_bps=500 (5%), create treasury ATA, create customer with caps (max_per_task=100_000_000, max_per_day=500_000_000), deposit 500 USDC, register agent package with split_bps=3000, create author ATA.
+3. Test: 'Case 1 - settles without agent package' — call settle with task_id='task-no-agent', amount=10_000_000, quality_met=true, no agent_package. Assert: customer balance debited by 10 USDC, treasury ATA credited 10 USDC, TaskReceipt PDA created with correct fields, author_earned=0.
+4. Test: 'Case 2 - settles with agent package, quality_met=true, split_bps=3000' — settle with amount=100_000_000 (100 USDC). After protocol fee (5 USDC), remaining 95 USDC split: author gets 30% (28.5 USDC), treasury gets 70% (66.5 USDC). Verify exact token amounts in author ATA and treasury ATA. Verify TaskReceipt.author_earned and TaskReceipt.protocol_fee.
+5. Test: 'Case 2 edge - split_bps=0' — register new package with split_bps=0, settle. Assert author gets 0, treasury gets 100% after protocol fee.
+6. Test: 'Case 2 edge - split_bps=10000' — register new package with split_bps=10000, settle. Assert author gets 100% after protocol fee, treasury gets only protocol fee.
+7. Test: 'Case 3 - quality_met=false' — settle with quality_met=false. Assert customer NOT debited (balance unchanged), TaskReceipt.amount=0, author earns 0.
+8. Test: 'fails when exceeding per-task cap' — settle with amount exceeding max_per_task. Assert ExceedsTaskCap error.
+9. Test: 'fails when exceeding daily cap' — settle multiple tasks to approach daily cap, then settle one that exceeds. Assert ExceedsDailyCap error.
+10. Test: 'fails while paused' — pause operator, attempt settle. Assert ProgramPaused. Unpause after.
+11. Test: 'fails with insufficient balance' — create new customer with low balance, attempt large settlement. Assert InsufficientBalance.
+12. Test: 'fails to settle same task_id twice' — attempt settle with previously used task_id. Assert error (PDA already exists).
+13. Test: 'fails with inactive agent package' — deactivate package, attempt settle. Assert InactivePackage error.
+14. Test: 'fails when non-operator settles' — create non-operator wallet, attempt settle. Assert Unauthorized.
 </implementation_plan>
 
 <validation>
-Click a row in the SettlementFeed DataTable. Verify the ReceiptDetail view opens and shows all fields: Task ID, Status badge, Amount breakdown (total, author earned, platform fee all summing correctly), Quality badge (green or red matching the row's qualityMet), Receipt Hash in hex, timestamps, shortened addresses with copy buttons, and 'View on Explorer' link. Click the Explorer link — verify it opens the correct Solana Explorer URL with the PDA address and ?cluster=devnet. Click 'Copy' on the receipt hash — verify clipboard contains the full hex string. Verify the placeholder message shows when no receipt is selected. Verify dismiss/close returns to the placeholder state.
+Run `anchor test --skip-build -- --grep 'Settlement'` — all 12 tests pass. For Case 2 with split_bps=3000: verify exact USDC amounts — protocol_fee=5_000_000, author_earned=28_500_000, treasury_received=66_500_000 (or verify the exact arithmetic per the program's implementation). All error cases produce the correct Anchor error codes. TaskReceipt PDAs contain correct data for every settlement.
 </validation>

@@ -2,10 +2,10 @@ name: implement-task-5
 metadata:
   task_id: 5
   agent: rex
-  stack: Rust/solana-sdk/solana-client
+  stack: Rust/Axum
   cli: Claude Code
   model: claude-opus-4-6-20260205
-  depends_on_tasks: [1, 2, 4]
+  depends_on_tasks: [2, 3, 4]
 
 args:
   task_dir: {}
@@ -36,7 +36,7 @@ steps:
   - id: scaffold-files
     depends_on: [setup]
     command: >
-      cd work && mkdir -p crates/settlement-sidecar crates/settlement-sidecar/src crates/settlement-sidecar/tests
+      cd work && mkdir -p crates/controller crates/controller/src/tasks/code crates/controller/src/tasks
 
   - id: implement-subtask-5001
     depends_on: [scaffold-files]
@@ -63,7 +63,7 @@ steps:
       cd work && cargo check && cargo test && cargo clippy -- -D warnings
 
   - id: implement-subtask-5003
-    depends_on: [validate-subtask-5001]
+    depends_on: [validate-subtask-5002]
     retry: { max: "${max_implementation_retries}" }
     command: >
       ${cli} -p "$(cat ${task_dir}/subtasks/task-5.5003/prompt.md)" --model ${model}
@@ -75,7 +75,7 @@ steps:
       cd work && cargo check && cargo test && cargo clippy -- -D warnings
 
   - id: implement-subtask-5004
-    depends_on: [validate-subtask-5002, validate-subtask-5003]
+    depends_on: [validate-subtask-5002]
     retry: { max: "${max_implementation_retries}" }
     command: >
       ${cli} -p "$(cat ${task_dir}/subtasks/task-5.5004/prompt.md)" --model ${model}
@@ -87,7 +87,7 @@ steps:
       cd work && cargo check && cargo test && cargo clippy -- -D warnings
 
   - id: implement-subtask-5005
-    depends_on: [validate-subtask-5001]
+    depends_on: [validate-subtask-5002]
     retry: { max: "${max_implementation_retries}" }
     command: >
       ${cli} -p "$(cat ${task_dir}/subtasks/task-5.5005/prompt.md)" --model ${model}
@@ -99,7 +99,7 @@ steps:
       cd work && cargo check && cargo test && cargo clippy -- -D warnings
 
   - id: implement-subtask-5006
-    depends_on: [validate-subtask-5002, validate-subtask-5003, validate-subtask-5004, validate-subtask-5005]
+    depends_on: [validate-subtask-5001]
     retry: { max: "${max_implementation_retries}" }
     command: >
       ${cli} -p "$(cat ${task_dir}/subtasks/task-5.5006/prompt.md)" --model ${model}
@@ -110,8 +110,32 @@ steps:
     command: >
       cd work && cargo check && cargo test && cargo clippy -- -D warnings
 
+  - id: implement-subtask-5007
+    depends_on: [validate-subtask-5003, validate-subtask-5004, validate-subtask-5005, validate-subtask-5006]
+    retry: { max: "${max_implementation_retries}" }
+    command: >
+      ${cli} -p "$(cat ${task_dir}/subtasks/task-5.5007/prompt.md)" --model ${model}
+
+  - id: validate-subtask-5007
+    depends_on: [implement-subtask-5007]
+    retry: { max: "${max_quality_retries}" }
+    command: >
+      cd work && cargo check && cargo test && cargo clippy -- -D warnings
+
+  - id: implement-subtask-5008
+    depends_on: [validate-subtask-5003, validate-subtask-5004, validate-subtask-5005]
+    retry: { max: "${max_implementation_retries}" }
+    command: >
+      ${cli} -p "$(cat ${task_dir}/subtasks/task-5.5008/prompt.md)" --model ${model}
+
+  - id: validate-subtask-5008
+    depends_on: [implement-subtask-5008]
+    retry: { max: "${max_quality_retries}" }
+    command: >
+      cd work && cargo check && cargo test && cargo clippy -- -D warnings
+
   - id: integration-validation
-    depends_on: [validate-subtask-5001, validate-subtask-5002, validate-subtask-5003, validate-subtask-5004, validate-subtask-5005, validate-subtask-5006]
+    depends_on: [validate-subtask-5001, validate-subtask-5002, validate-subtask-5003, validate-subtask-5004, validate-subtask-5005, validate-subtask-5006, validate-subtask-5007, validate-subtask-5008]
     command: >
       cd work && bun tsc --noEmit && bun test --run && bun lint
 

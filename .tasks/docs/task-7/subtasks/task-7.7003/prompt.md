@@ -4,25 +4,22 @@ You are blaze working on subtask 7003 of task 7.
 
 <context>
 <scope>
-Define TypeScript interfaces mirroring on-chain account structures (OperatorConfig, CustomerBalance, AgentPackage, TaskReceipt, TaskStatus) and implement utility formatter functions for USDC amounts and quality badges.
+Build the root `/` dashboard page that shows CustomerBalance summary when wallet is connected, a create account CTA when no customer account exists, and a wallet connect prompt when disconnected.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `src/types/index.ts` (or separate files per type in `src/types/`).
-2. Define `TaskStatus` enum: `Pending`, `Settled`, `Disputed`, `Refunded` matching on-chain variants.
-3. Define `OperatorConfig` interface: `authority: PublicKey`, `mint: PublicKey`, `treasury: PublicKey`, `platformFeeBps: number`, `paused: boolean`.
-4. Define `CustomerBalance` interface: `owner: PublicKey`, `balance: BN`, `totalDeposited: BN`, `totalSpent: BN`, `taskCount: number`, `maxPerTask: BN`, `maxPerDay: BN`, `dailySpent: BN`, `lastDayReset: BN`.
-5. Define `AgentPackage` interface: `packageId: string`, `author: PublicKey`, `splitBps: number`, `totalEarned: BN`, `taskCount: number`, `successCount: number`, `active: boolean`.
-6. Define `TaskReceipt` interface: `taskId: string`, `customer: PublicKey`, `agentPackage: PublicKey`, `amount: BN`, `authorEarned: BN`, `platformFee: BN`, `qualityMet: boolean`, `receiptHash: number[]`, `status: TaskStatus`, `createdAt: BN`, `settledAt: BN | null`.
-7. Create `src/lib/formatters.ts` with:
-   - `formatUsdc(lamports: BN | number): string` — converts to 6-decimal USDC string like '10.00 USDC'.
-   - `formatQuality(met: boolean): { label: string; variant: 'success' | 'destructive' }` — returns badge config for shadcn Badge.
-   - `formatTimestamp(unixSeconds: BN | number): string` — human-readable date/time.
-   - `shortenAddress(address: string, chars?: number): string` — truncates pubkey for display.
-8. Export all types and formatters from barrel files.
+1. Create `src/app/page.tsx` as the dashboard home.
+2. Use `useWallet()` hook to detect connection state. Three states:
+   a. **Not connected**: Render centered wallet connect prompt with WalletMultiButton and explanatory text.
+   b. **Connected, no CustomerBalance PDA**: Derive customer PDA from wallet pubkey, attempt to fetch. If not found, render 'Create Account' CTA card with instructions to deposit first.
+   c. **Connected, account exists**: Fetch CustomerBalance account data via useProgram. Render BalanceCard with balance, total_deposited, total_spent, task_count.
+3. Create `src/hooks/useCustomerBalance.ts`: TanStack Query hook that fetches CustomerBalance account. Derives PDA from connected wallet pubkey. Returns { data, isLoading, error, refetch }. Refetches on wallet change.
+4. Add quick-action cards below balance: 'View Receipts' → /receipts, 'Browse Agents' → /agents, 'Deposit USDC' → /deposit.
+5. Handle loading states with skeleton UI. Handle errors with user-friendly messages.
+6. Ensure the page works with static export (all data fetched client-side).
 </implementation_plan>
 
 <validation>
-Run `npx tsc --noEmit` — zero type errors. Write a small test or console.log script that calls `formatUsdc(10_000_000)` and asserts output is '10.00 USDC'. Call `formatUsdc(0)` and verify '0.00 USDC'. Call `formatQuality(true)` and verify `{ label: 'Met', variant: 'success' }`. Call `shortenAddress('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU')` and verify truncated form like '7xKX...AsU'.
+With no wallet connected, page shows wallet connect prompt. Connect Phantom wallet on devnet: if no customer account exists, 'Create Account' CTA appears. If customer account exists (after deposit via CLI), BalanceCard displays correct balance matching on-chain state queried via `solana account` CLI. Quick action cards link to correct routes. Page loads without console errors.
 </validation>

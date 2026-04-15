@@ -4,19 +4,26 @@ You are rex working on subtask 5003 of task 5.
 
 <context>
 <scope>
-Build the transaction construction module that derives all required PDAs using SHA-256 seed logic matching the on-chain program and constructs settle_task and refund_task instructions with the correct account lists.
+Create pure functions compute_billable_amount and build_receipt_json in the billing module that transform CodeRun metadata into a USDC lamport amount and a structured receipt JSON matching the Task 4 schema.
 </scope>
 </context>
 
 <implementation_plan>
-1. Implement `src/pda.rs` with functions: `derive_operator_config(program_id) -> (Pubkey, u8)`, `derive_customer_balance(program_id, customer: &Pubkey) -> (Pubkey, u8)`, `derive_agent_package(program_id, package_id: &str) -> (Pubkey, u8)`, `derive_task_receipt(program_id, task_id: &str) -> (Pubkey, u8)`, `derive_vault(program_id, mint: &Pubkey) -> (Pubkey, u8)`. Each uses `sha2::Sha256` to hash the relevant seed components, then `Pubkey::find_program_address` with the hash output as seed, exactly matching the on-chain derivation.
-2. Implement `src/transaction.rs` with `TransactionBuilder` struct holding program_id, operator keypair reference, and RpcClient reference.
-3. Implement `build_settle_task()`: takes SettlementEvent, derives all PDAs (operator_config, customer_balance, vault, task_receipt, and optionally agent_package + author_ata). Construct the instruction data (Anchor discriminator + serialized args: task_id, amount, receipt_hash, quality_met). Build AccountMeta list: operator (signer, writable), operator_config (read), customer_balance (writable), vault (writable), treasury_ata (writable), task_receipt (writable, init), system_program, token_program, clock sysvar. If agent_package present: add agent_package (writable) and author_ata (writable).
-4. Implement `build_refund_task()`: similar pattern with refund-specific accounts.
-5. Implement blockhash management: `BlockhashCache` struct with `get_blockhash()` that returns cached value if < 30 seconds old, otherwise fetches fresh via `RpcClient::get_latest_blockhash()`. Expose `force_refresh()` for BlockhashNotFound recovery.
-6. Assemble full Transaction with the instruction, recent blockhash, and sign with operator keypair.
+1. In `crates/controller/src/tasks/code/billing.rs`, define:
+   - `struct BillableTask` with fields: task_id (String), customer_pubkey (Pubkey), amount_usdc_lamports (u64), receipt_json (serde_json::Value), agent_package_id (String), quality_met (bool).
+   - Pricing constants: `FREE_RATE: u64 = 3_000_000` (3 USDC), `TEAM_RATE: u64 = 1_500_000` (1.50), `GROWTH_RATE: u64 = 750_000` (0.75), `ENTERPRISE_RATE: u64 = 500_000` (0.50). For hackathon, a flat `HACKATHON_RATE: u64 = 750_000`.
+2. Implement `fn compute_billable_amount(coderun: &CodeRun) -> u64`:
+   - Extract pod duration from CodeRun status (start_time to end_time).
+   - Look up customer tier from CodeRun annotations or default to HACKATHON_RATE.
+   - Calculate: `(duration_minutes.ceil() as u64) * rate_per_run`. For hackathon, simplify to flat per-run rate.
+   - Return amount in USDC lamports (1 USDC = 1_000_000 lamports).
+3. Implement `fn build_receipt_json(coderun: &CodeRun, amount: u64) -> serde_json::Value`:
+   - Build JSON matching Task 4 receipt schema with fields: task_id, customer_pubkey, timestamp (ISO 8601), billing_items (array of {description, quantity, unit_price_usdc, subtotal_usdc}), total_amount_usdc, agent_package_id, quality_met.
+   - Billing items should include: coderun duration charge, infra tier charge.
+   - Amounts in the JSON should be human-readable decimal strings (e.g., "0.75") while the return struct uses integer lamports.
+4. Both functions must be pure (no I/O, no async) for easy unit testing.
 </implementation_plan>
 
 <validation>
-Unit tests: (1) Derive operator_config, customer_balance, agent_package, task_receipt, and vault PDAs from known inputs (hardcoded program_id, customer pubkey, package_id, task_id, mint) — verify output matches expected Pubkeys computed independently (cross-reference with TypeScript PDA derivation from Task 3 or from anchor test fixtures). (2) Verify settle_task instruction data serialization: construct instruction, check discriminator bytes and serialized args match expected byte layout. (3) Verify account list for settle_task with agent_package includes exactly the expected accounts in correct order with correct is_signer/is_writable flags. (4) Verify account list for settle_task without agent_package omits agent_package and author_ata accounts.
+Run `cargo test -p controller -- billing::compute` and `cargo test -p controller -- billing::receipt` — all pass. Specific assertions: compute_billable_amount returns 750_000 for a Growth-tier single CodeRun; returns 1_500_000 for a Team-tier single CodeRun; returns 0 for a zero-duration run. build_receipt_json output parses as valid JSON, contains task_id field matching input, billing_items array is non-empty, total_amount_usdc matches computed amount as decimal string.
 </validation>

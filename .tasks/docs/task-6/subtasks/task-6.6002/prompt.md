@@ -1,38 +1,42 @@
 <identity>
-You are stitch working on subtask 6002 of task 6.
+You are nova working on subtask 6002 of task 6.
 </identity>
 
 <context>
 <scope>
-Build the first four demo phases covering keypair generation, SOL airdrop, mock USDC mint/ATA creation, operator initialization, agent package registration, and customer account creation.
+Implement the first half of demo.ts covering environment setup (Step 0), operator initialization (Step 1), agent package registration (Step 2), customer account creation (Step 3), and USDC deposit (Step 4).
 </scope>
 </context>
 
 <implementation_plan>
-1. Implement `src/phases/phase0.ts` — Setup & Token Provisioning:
-   a. Generate 3 keypairs: operator, customer, agentAuthor using Keypair.generate().
-   b. If cluster is localnet: airdrop 10 SOL to each via connection.requestAirdrop(), confirm each.
-   c. Create mock USDC mint with 6 decimals using createMint() from @solana/spl-token, mint authority = operator.
-   d. Create ATAs: customer ATA, agentAuthor ATA, treasury ATA (for operator's treasury address) using getOrCreateAssociatedTokenAccount().
-   e. Mint 1000 USDC (1_000_000_000 lamports) to customer's ATA using mintTo().
-   f. Log all pubkeys, mint address, and Explorer links using chalk formatting.
-   g. Return all keypairs, mint, and ATA addresses for use in subsequent phases.
-
-2. Implement `src/phases/phase1.ts` — Initialize Operator:
-   a. Build and send `initialize_operator` instruction via Anchor program with treasury ATA, mock USDC mint, protocol_fee_bps=0.
-   b. Log OperatorConfig PDA (derived via helper), transaction signature, Explorer link.
-
-3. Implement `src/phases/phase2.ts` — Register Agent Package:
-   a. Build and send `register_agent_package` signed by agentAuthor keypair with package_id='smart-debug-agent-v1', split_bps=3000, source_uri='https://github.com/example/smart-debug-agent'.
-   b. Log AgentPackage PDA, author wallet, '30% revenue split', Explorer link.
-
-4. Implement `src/phases/phase3.ts` — Create Customer Account:
-   a. Build and send `create_customer_account` signed by customer keypair with max_per_task=100_000_000, max_per_day=500_000_000.
-   b. Log CustomerBalance PDA, spending caps formatted as USDC amounts.
-
-5. Each phase function logs a header line using phaseHeader() utility, wraps the work in an ora spinner, and throws with context on failure.
+1. In `cli/src/demo.ts`, implement the main async function with sequential steps:
+2. **Step 0 — Setup:**
+   - Use `ora` spinner while setting up.
+   - Call `getConnection()` for devnet.
+   - Load or generate 3 keypairs: operator, author, customer.
+   - Call `ensureSol` for all three (airdrop if needed).
+   - Call `ensureUsdcMint` to create test USDC mint.
+   - Call `mintUsdc` to mint 100 USDC (100_000_000 lamports) to customer's ATA.
+   - Print all wallet addresses and balances using `chalk` colored output.
+3. **Step 1 — Initialize Operator:**
+   - Call `program.methods.initializeOperator(treasuryPubkey, 500).accounts({...}).signers([operator]).rpc()`.
+   - Print OperatorConfig PDA address and `explorerLink(txSig)`.
+   - Use `printStep(1, "Initialize Operator")` header.
+4. **Step 2 — Register Agent Package:**
+   - Call `program.methods.registerAgentPackage("rex-code-agent", 3000, "https://arweave.net/mock-package-hash").accounts({...}).signers([author]).rpc()`.
+   - Print AgentPackage PDA, author wallet, split percentage.
+5. **Step 3 — Create Customer Account:**
+   - Call `program.methods.createCustomerAccount(new BN(50_000_000), new BN(200_000_000)).accounts({...}).signers([customer]).rpc()`.
+   - Print CustomerBalance PDA and spending limits.
+6. **Step 4 — Deposit USDC:**
+   - Call `program.methods.deposit(new BN(100_000_000)).accounts({...}).signers([customer]).rpc()`.
+   - Fetch and print new CustomerBalance (should show 100 USDC).
+   - Fetch and print vault token account balance.
+7. Store all transaction signatures in an array for the summary step.
+8. Between each step, add a brief `console.log` separator and the step timing.
+9. Export the state (keypairs, program, mint, PDAs, signatures) for use by subsequent steps.
 </implementation_plan>
 
 <validation>
-Run phases 0-3 against a running solana-test-validator with cto-billing deployed. Verify: (1) Phase 0 — customer ATA balance is 1000 USDC (fetch token account, check amount). (2) Phase 1 — OperatorConfig PDA account exists on-chain, treasury field matches expected ATA. (3) Phase 2 — AgentPackage PDA exists, split_bps=3000, author matches agentAuthor pubkey. (4) Phase 3 — CustomerBalance PDA exists, max_per_task=100_000_000. All four phases complete without errors.
+Run `bun run src/demo.ts` with a `--stop-after=4` flag (or comment out later steps) against devnet. Steps 0-4 complete without error. Verify on-chain: OperatorConfig PDA exists with protocol_fee_bps=500. AgentPackage PDA exists with package_id="rex-code-agent" and split_bps=3000. CustomerBalance PDA exists with balance=100_000_000. Vault token account holds 100 USDC. Console output shows colored step headers, wallet addresses, PDA addresses, and explorer links.
 </validation>

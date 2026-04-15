@@ -4,21 +4,23 @@ You are blaze working on subtask 7005 of task 7.
 
 <context>
 <scope>
-Create the Header component displaying the CTO/5D Labs logo on the left, a 'Devnet' network indicator badge in the center area, and the WalletMultiButton on the right with a solana-green glow effect when connected.
+Build the /receipts page that lists all TaskReceipt accounts for the connected customer wallet, fetched via getProgramAccounts with memcmp filter on the customer pubkey field.
 </scope>
 </context>
 
 <implementation_plan>
-1. Create `src/components/Header.tsx` as a client component ('use client').
-2. Layout: flex row with items-center, justify-between. Full width with horizontal padding and a subtle bottom border (border-solana-card or similar).
-3. Left section: CTO / 5D Labs logo. Use a text-based logo for now (e.g., styled 'CTO' in solana-purple with 'Settlement Protocol' subtitle), or an SVG if available.
-4. Center section: shadcn `Badge` component showing 'Devnet' with `bg-solana-purple/20 text-solana-purple border-solana-purple` styling.
-5. Right section: `<WalletMultiButton />` from `@solana/wallet-adapter-react-ui`. Apply custom className to style it with Solana colors.
-6. Use the `useWallet()` hook to detect `connected` state. When connected, add a CSS glow effect (box-shadow with solana-green #14F195) around the wallet button or add a green dot indicator.
-7. Apply responsive styles: on mobile (<768px), reduce padding and potentially hide the network badge or shrink the logo text.
-8. Export the Header component and import it in the layout or page as appropriate (likely in layout.tsx below the providers or in page.tsx).
+1. Create `src/app/receipts/page.tsx`:
+   a. Require wallet connection (redirect or prompt if disconnected).
+   b. Fetch all TaskReceipt accounts where customer field matches connected wallet pubkey.
+2. Create `src/hooks/useCustomerReceipts.ts`: TanStack Query hook that calls `program.account.taskReceipt.all([{ memcmp: { offset: 8, bytes: wallet.publicKey.toBase58() } }])`. Note: verify the correct offset for the customer field in the TaskReceipt account layout by checking the IDL discriminator + field ordering.
+3. Render ReceiptTable component with fetched receipts. Columns: task_id, amount (via UsdcAmount), author_earned, quality_met (QualityBadge), agent_package name (truncated), settled_at (formatted date from Unix timestamp), status badge (Settled green / Refunded yellow).
+4. Each row is a clickable link to `/receipts/[taskId]`.
+5. Add sort controls: sort by settled_at (newest first default), amount, task_id.
+6. Handle empty state: 'No receipts found. Complete a task to see billing receipts here.'
+7. Handle loading state with skeleton rows.
+8. Show total count of receipts and sum of amounts at the top.
 </implementation_plan>
 
 <validation>
-Visually verify at http://localhost:3000: (1) Header spans full width with CTO logo on left, Devnet badge in center area, wallet button on right. (2) 'Devnet' badge is visible with purple styling. (3) Clicking the wallet button opens the wallet selection modal. (4) After connecting with Phantom on devnet, verify the green glow effect appears. (5) On 375px viewport, header elements remain accessible and don't overflow.
+Connect wallet that has at least 2 TaskReceipt accounts (created via CLI demo flow). /receipts page shows both receipts in a table with correct task_id, amount, quality_met status. Sorting by amount works. Clicking a row navigates to /receipts/[taskId]. Empty state shows when wallet has no receipts. Receipt count and total amount sum are accurate.
 </validation>

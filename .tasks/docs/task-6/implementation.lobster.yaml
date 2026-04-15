@@ -1,11 +1,11 @@
 name: implement-task-6
 metadata:
   task_id: 6
-  agent: stitch
-  stack: TypeScript/Solana-Web3.js/@coral-xyz/anchor
+  agent: nova
+  stack: Bun/TypeScript
   cli: Claude Code
   model: claude-opus-4-6-20260205
-  depends_on_tasks: [1, 2]
+  depends_on_tasks: [2, 3, 4]
 
 args:
   task_dir: {}
@@ -13,7 +13,7 @@ args:
   branch_name:
     default: "task-6/feature-branch"
   agent:
-    default: "stitch"
+    default: "nova"
   cli:
     default: "Claude Code"
   model:
@@ -33,8 +33,13 @@ steps:
       git clone ${repo_url} work && cd work &&
       git checkout -b ${branch_name}
 
-  - id: implement-subtask-6001
+  - id: scaffold-files
     depends_on: [setup]
+    command: >
+      cd work && mkdir -p cli cli/src cli/src/utils cli/src/commands
+
+  - id: implement-subtask-6001
+    depends_on: [scaffold-files]
     retry: { max: "${max_implementation_retries}" }
     command: >
       ${cli} -p "$(cat ${task_dir}/subtasks/task-6.6001/prompt.md)" --model ${model}
@@ -70,7 +75,7 @@ steps:
       cd work && bun tsc --noEmit && bun test && bun lint
 
   - id: implement-subtask-6004
-    depends_on: [validate-subtask-6003]
+    depends_on: [validate-subtask-6001]
     retry: { max: "${max_implementation_retries}" }
     command: >
       ${cli} -p "$(cat ${task_dir}/subtasks/task-6.6004/prompt.md)" --model ${model}

@@ -1,93 +1,74 @@
 <identity>
-You are stitch, the TypeScript/Solana-Web3.js/@coral-xyz/anchor implementation agent. You own task 6 end-to-end.
+You are nova, the Bun/TypeScript implementation agent. You own task 6 end-to-end.
 </identity>
 
 <context>
 <task_overview>
-Task 6: End-to-End CLI Demo Script (Stitch - TypeScript/Solana-Web3.js/Anchor)
-Build the hackathon demo script that executes the full billing + marketplace flow end-to-end, producing console output and Solana Explorer links for the demo video (PRD Section 11, Deliverable #2).
+Task 6: Build Hackathon Demo CLI Script — Full E2E Flow (Nova - Bun/TypeScript)
+Create a TypeScript CLI script that demonstrates the complete hackathon flow end-to-end: register an agent package, create customer, deposit USDC, settle with quality met (author gets paid), settle with quality NOT met (customer not charged), verify receipts on-chain and on Arweave, and withdraw remaining balance. This is hackathon deliverable #2 and the basis for the demo video.
 Priority: high
-Dependencies: 1, 2
+Dependencies: 2, 3, 4
 </task_overview>
 </context>
 
 <implementation_plan>
-1. Set up project at `demo/cli/` with package.json, tsconfig.json. Dependencies: @coral-xyz/anchor, @solana/web3.js, @solana/spl-token, chalk (colored output), ora (spinners). Import IDL from `../../target/idl/cto_billing.json` and types from `../../target/types/cto_billing.ts`.
-
-2. Configuration: accept `--cluster` flag (localnet|devnet, default localnet). Accept `--keypair` for operator keypair path. Use `@solana/web3.js` Connection with appropriate RPC URL.
-
-3. Implement PDA derivation helpers matching on-chain logic: `deriveOperatorConfig()`, `deriveCustomerBalance(customer)`, `deriveAgentPackage(packageId)`, `deriveTaskReceipt(taskId)`, `deriveVault(mint)`. All use SHA-256 hashing per D2.
-
-4. Implement 10 demo phases (each logs a section header with phase number):
-
-   **Phase 0: Setup & Token Provisioning**
-   - Generate keypairs: operator, customer, agentAuthor.
-   - If localnet: airdrop SOL to all three.
-   - Create a mock USDC mint (6 decimals) owned by operator.
-   - Create ATAs for: customer, agentAuthor, treasury (operator's second ATA).
-   - Mint 1000 USDC to customer's ATA.
-   - Log: all pubkeys, mint address, Solana Explorer links.
-
-   **Phase 1: Initialize Operator**
-   - Call `initialize_operator` with treasury ATA, mock USDC mint, protocol_fee_bps=0.
-   - Log: OperatorConfig PDA, transaction signature, Explorer link.
-
-   **Phase 2: Register Agent Package**
-   - Author calls `register_agent_package` with package_id='smart-debug-agent-v1', split_bps=3000 (30%), source_uri='https://github.com/example/smart-debug-agent'.
-   - Log: AgentPackage PDA, author wallet, split percentage, Explorer link.
-
-   **Phase 3: Create Customer Account**
-   - Customer calls `create_customer_account` with max_per_task=100_000_000 (100 USDC), max_per_day=500_000_000 (500 USDC).
-   - Log: CustomerBalance PDA, spending caps.
-
-   **Phase 4: Customer Deposits USDC**
-   - Customer calls `deposit` with 200 USDC (200_000_000).
-   - Log: deposit amount, new balance, Explorer link.
-
-   **Phase 5: Settle Task — Quality Met (Author Gets Paid)**
-   - Operator calls `settle_task` with task_id='CTO-1234', amount=10_000_000 (10 USDC), receipt_hash (SHA-256 of mock receipt JSON), quality_met=true, agent_package PDA.
-   - Log: task_id, amount charged, author earned (3 USDC), treasury received (7 USDC), TaskReceipt PDA, quality_met=true, Explorer link.
-   - Highlight the SPLIT with colored output: '🟢 Quality MET — Author earned 3.00 USDC (30%), Treasury received 7.00 USDC (70%)'.
-
-   **Phase 6: Settle Task — Quality NOT Met (Customer Protected)**
-   - Operator calls `settle_task` with task_id='CTO-1235', amount=15_000_000 (15 USDC), quality_met=false, agent_package PDA.
-   - Log: task_id, amount charged=0, author earned=0, customer balance unchanged, quality_met=false.
-   - Highlight: '🔴 Quality NOT MET — Customer not charged. Author earned nothing.'
-
-   **Phase 7: Settle Task — Default Agent (No Split)**
-   - Operator calls `settle_task` with task_id='CTO-1236', amount=5_000_000 (5 USDC), no agent_package, quality_met=true.
-   - Log: full amount to treasury, no split.
-
-   **Phase 8: Verify On-Chain Receipts**
-   - Fetch all three TaskReceipt PDAs. Display a formatted table showing:
-     | Task ID | Amount | Author Earned | Quality | Status |
-     |---------|--------|---------------|---------|--------|
-     | CTO-1234 | 10.00 | 3.00 | ✅ MET | Settled |
-     | CTO-1235 | 0.00 | 0.00 | ❌ NOT MET | Settled |
-     | CTO-1236 | 5.00 | 0.00 | ✅ MET | Settled |
-   - Fetch AgentPackage: show total_earned, task_count, success_count.
-
-   **Phase 9: Customer Withdraws Remaining Balance**
-   - Customer calls `withdraw` with remaining balance.
-   - Log: withdrawal amount, final balance=0, Explorer link.
-   - Final summary: 'Demo complete! Customer deposited 200 USDC, was charged 15 USDC for 2 successful tasks, was protected from 1 failed task, and withdrew 185 USDC.'
-
-5. Add `npm run demo:localnet` and `npm run demo:devnet` scripts.
-
-6. Handle errors gracefully: if any phase fails, log the error with context and the Solana transaction logs, then exit with non-zero code.
-
-7. Generate a mock receipt JSON blob for Phase 5 with fields: task_id, customer, duration_seconds, infra_tier, provider, agent_used, cost breakdown, total, timestamp. Compute SHA-256 hash of this JSON string for the receipt_hash parameter.
+1. Create `cli/` directory with a Bun TypeScript project:
+   - `package.json` with dependencies: `@coral-xyz/anchor` (0.30.x), `@solana/web3.js` (^1.95), `@solana/spl-token` (^0.4), `@cto-billing/receipt-uploader` (workspace link), `commander` (^12), `chalk` (^5), `ora` (^8) for CLI UX.
+   - Import the IDL from `target/idl/cto_billing.json`.
+2. Implement `cli/src/demo.ts` as the main demo script with the following sequential steps, each with colorful console output and Solana explorer links:
+   **Step 0 — Setup:**
+   - Load operator keypair from env or file.
+   - Connect to devnet RPC.
+   - Airdrop SOL to operator, author, and customer wallets if balances are low.
+   - Ensure test USDC mint exists and mint tokens to customer wallet.
+   **Step 1 — Initialize Operator:**
+   - Call `initialize_operator` with treasury pubkey and protocol_fee_bps=500 (5%).
+   - Print OperatorConfig PDA address and explorer link.
+   **Step 2 — Register Agent Package (Author):**
+   - Generate or load an author keypair.
+   - Call `register_agent_package` with package_id="rex-code-agent", split_bps=3000 (30%), source_uri="https://arweave.net/mock-package-hash".
+   - Print AgentPackage PDA and author wallet.
+   **Step 3 — Create Customer Account:**
+   - Generate or load a customer keypair.
+   - Call `create_customer_account` with max_per_task=50_000_000 (50 USDC), max_per_day=200_000_000 (200 USDC).
+   - Print CustomerBalance PDA.
+   **Step 4 — Deposit USDC:**
+   - Call `deposit` with 100_000_000 (100 USDC).
+   - Print new balance and vault balance.
+   **Step 5 — Settle Task (Quality MET):**
+   - Build a sample receipt JSON for task "TASK-001" with billing items (coderun: 15 min @ $0.75, infra: standard tier).
+   - Upload receipt to Arweave via receipt-uploader module.
+   - Call `settle_task` with amount=10_000_000 (10 USDC), receipt_hash, agent_package PDA, quality_met=true.
+   - Print: TaskReceipt PDA, customer balance (should be 90 USDC), author earned (3 USDC = 30%), treasury received (7 USDC), Arweave receipt link.
+   **Step 6 — Settle Task (Quality NOT MET):**
+   - Build receipt for task "TASK-002".
+   - Upload to Arweave.
+   - Call `settle_task` with amount=10_000_000, quality_met=false.
+   - Print: TaskReceipt PDA shows amount=0, customer balance unchanged (still 90 USDC), author earned=0.
+   **Step 7 — Verify Receipts:**
+   - Fetch both TaskReceipt PDAs and print their full contents.
+   - Fetch Arweave receipts and verify hashes match on-chain receipt_hash.
+   - Print verification status (✓ or ✗).
+   **Step 8 — Withdraw Remaining Balance:**
+   - Call `withdraw` with full remaining balance.
+   - Print final customer balance (0) and customer ATA balance.
+   **Step 9 — Summary:**
+   - Print a summary table showing all transactions with Solana explorer links.
+3. Add `cli/src/commands/` with individual command files for each operation (for manual use beyond the demo).
+4. Add `cli/package.json` script: `"demo": "bun run src/demo.ts"`.
+5. Handle errors gracefully with descriptive messages and transaction links for debugging.
 </implementation_plan>
 
 <acceptance_criteria>
-Run `npm run demo:localnet` against a running `solana-test-validator` with the cto-billing program deployed. The script completes all 10 phases without errors in under 120 seconds. Verify specific outputs: (1) Phase 5 shows author_earned = 3.00 USDC and treasury_received = 7.00 USDC, (2) Phase 6 shows amount_charged = 0.00 and 'Quality NOT MET' message, (3) Phase 8 receipt table displays all 3 tasks with correct amounts and quality indicators, (4) Phase 9 shows withdrawal of exactly 185.00 USDC (200 deposited - 10 - 5 charged), (5) All logged Explorer links contain valid base58 transaction signatures. Run `npx tsc --noEmit` — TypeScript compilation passes with zero errors.
+Run `bun run demo` from the `cli/` directory against Solana devnet — the script completes all 10 steps without error and exits with code
+0. Verify on-chain state after execution: (1) OperatorConfig PDA exists and has correct treasury. (2) AgentPackage PDA has package_id="rex-code-agent", split_bps=3000, task_count=2, success_count=1, total_earned=3_000_000 (3 USDC). (3) CustomerBalance PDA has balance=0, total_deposited=100_000_000, total_spent=10_000_000, task_count=2. (4) TaskReceipt for TASK-001: amount=10_000_000, author_earned=3_000_000, quality_met=true. (5) TaskReceipt for TASK-002: amount=0, author_earned=0, quality_met=false. (6) Both Arweave receipt URLs are accessible and SHA-256 hashes match on-chain receipt_hash values. Full script runtime completes within 120 seconds on devnet.
 
 See also: acceptance.md in this task directory for the checklist version.
 </acceptance_criteria>
 
 <subtasks>
-- Set up TypeScript project, CLI argument parsing, PDA derivation helpers, and formatting utilities: Create the demo/cli/ project with all dependencies, implement PDA derivation functions matching on-chain SHA-256 logic, build Explorer link generators, and set up chalk/ora formatting helpers.
-- Implement Phases 0-3: Setup, token provisioning, operator init, agent registration, customer account: Build the first four demo phases covering keypair generation, SOL airdrop, mock USDC mint/ATA creation, operator initialization, agent package registration, and customer account creation.
-- Implement Phases 4-7: Deposit, three settlement scenarios with colored split output: Build the deposit phase and three distinct settlement scenarios demonstrating quality-met with agent split, quality-not-met protection, and default agent (no split), with rich colored console output.
-- Implement Phases 8-9: On-chain verification table, withdrawal, final summary, and error handling: Build the receipt verification phase with formatted table output, customer withdrawal with final summary, global error handling, and wire all phases together in the main entry point.
+- Scaffold CLI project with dependencies and setup utilities: Create the cli/ directory structure, package.json with all dependencies, TypeScript config, IDL import, and shared utility functions for wallet loading, devnet connection, SOL airdrop, and test USDC minting.
+- Implement demo steps 0-4: Setup, initialize operator, register agent, create customer, deposit: Implement the first half of demo.ts covering environment setup (Step 0), operator initialization (Step 1), agent package registration (Step 2), customer account creation (Step 3), and USDC deposit (Step 4).
+- Implement demo steps 5-9: Settle (quality met/not met), verify receipts, withdraw, summary: Implement the second half of demo.ts covering quality-met settlement (Step 5), quality-not-met settlement (Step 6), receipt verification (Step 7), withdrawal (Step 8), and the summary table (Step 9).
+- Implement individual CLI command modules for standalone usage: Create separate command files in cli/src/commands/ for each Solana program operation, wired up with Commander, so users can invoke operations individually beyond the scripted demo flow.
 </subtasks>

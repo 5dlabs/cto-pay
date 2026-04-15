@@ -3,7 +3,7 @@ metadata:
   task_id: 2
   agent: cipher
   phase: security
-  stack: Rust/Anchor/Solana
+  stack: Rust/Anchor
   cli: Claude Code
   model: claude-opus-4-6-20260205
 
