@@ -137,9 +137,12 @@ package is the full bundle needed to run an agent on CTO's runtime:
   runtimes)
 
 An `AgentPackage` PDA stores the author's wallet, a split percentage
-(basis points), and a reference to the package source (repo URL, Arweave
-URI, compressed archive, etc.). Registration is permissionless — anyone
-can publish.
+(basis points), a content-addressed reference to the package source, and
+a SHA-256 content hash for integrity verification. The `source_uri`
+should be an Arweave transaction ID (`ar://...`) uploaded via Irys —
+preferred per §3a decentralized-first principle — ensuring permanent,
+tamper-proof availability. Repo URLs are acceptable during development.
+Registration is permissionless — anyone can publish.
 
 When a customer's task uses a public agent package, the `settle_task`
 instruction includes the package's PDA. The program uses it to route a
@@ -327,7 +330,8 @@ AgentPackage (PDA, seeded by package_id)
 ├── package_id: String         // unique identifier
 ├── author: Pubkey             // author's wallet (receives royalties)
 ├── split_bps: u16             // author's share in basis points (e.g. 3000 = 30%)
-├── source_uri: String         // repo URL, Arweave URI, or compressed archive ref
+├── source_uri: String         // Arweave URI (ar://txid) preferred; repo URL for dev
+├── content_hash: [u8; 32]    // SHA-256 of the package bundle at source_uri
 ├── total_earned: u64          // cumulative USDC earned (quality signal)
 ├── task_count: u64            // total tasks run
 ├── success_count: u64         // tasks that met quality threshold
@@ -365,12 +369,16 @@ TaskReceipt (PDA, seeded by task_id)
 initialize_operator(authority, treasury, protocol_fee_bps)
   → Creates OperatorConfig PDA.
 
-register_agent_package(package_id, split_bps, source_uri)
+register_agent_package(package_id, split_bps, source_uri, content_hash)
   → Called by the author. Creates AgentPackage PDA with the signer as
-     author. Permissionless — anyone can publish.
+     author. `source_uri` should be an Arweave URI (`ar://txid`) for
+     permanent decentralized storage; `content_hash` is the SHA-256 of
+     the package bundle at that URI. Permissionless — anyone can publish.
 
-update_agent_package(source_uri, split_bps, active)
-  → Called by the author. Updates their package metadata.
+update_agent_package(source_uri, content_hash, split_bps, active)
+  → Called by the author. Updates their package metadata. When updating
+     the source, both `source_uri` and `content_hash` must be provided
+     together to maintain integrity.
 
 create_customer_account(max_per_task, max_per_day)
   → Creates CustomerBalance PDA for the signing customer.
@@ -482,9 +490,10 @@ all of them atomically (N-way split in one Solana transaction).
 ## 11. Hackathon deliverables
 
 1. **Anchor program** deployed to Solana devnet implementing:
-   `initialize_operator`, `register_agent_package`, `update_agent_package`,
-   `create_customer_account`, `deposit`, `withdraw`, `settle_task`,
-   `refund_task`, `update_spending_caps`, `pause/unpause`.
+   `initialize_operator`, `register_agent_package` (with `content_hash`),
+   `update_agent_package`, `create_customer_account`, `deposit`,
+   `withdraw`, `settle_task`, `refund_task`, `update_spending_caps`,
+   `pause/unpause`.
 2. **CLI or script** that simulates the full flow: register an agent
    package → create customer → deposit USDC → run a task with the public
    agent → settle with quality met (author gets paid) → run another task

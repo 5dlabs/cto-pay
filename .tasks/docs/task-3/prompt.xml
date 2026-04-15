@@ -4,12 +4,12 @@
   <description>Implement the marketplace and settlement layer: AgentPackage registration/update, the settle_task instruction with quality-gated payment splitting (all three cases from PRD §6.3), refund_task, and TaskReceipt on-chain accounts. This completes the Anchor program with the full instruction set specified in hackathon deliverable #1.</description>
   <implementation>
     <details>1. Define additional account structures in `programs/cto-billing/src/state/`:
-   - `AgentPackage` PDA (seeds: [b"agent_package", package_id.as_bytes()]): package_id (String, max 64), author (Pubkey), split_bps (u16), source_uri (String, max 256), total_earned (u64), task_count (u64), success_count (u64), registered_at (i64), active (bool). Size: 8 + (4+64) + 32 + 2 + (4+256) + 8 + 8 + 8 + 8 + 1 = ~404 bytes.
+   - `AgentPackage` PDA (seeds: [b"agent_package", package_id.as_bytes()]): package_id (String, max 64), author (Pubkey), split_bps (u16), source_uri (String, max 256), content_hash ([u8; 32]), total_earned (u64), task_count (u64), success_count (u64), registered_at (i64), active (bool). Size: 8 + (4+64) + 32 + 2 + (4+256) + 32 + 8 + 8 + 8 + 8 + 1 = ~436 bytes.
    - `TaskReceipt` PDA (seeds: [b"task_receipt", task_id.as_bytes()]): task_id (String, max 64), customer (Pubkey), amount (u64), author_earned (u64), quality_met (bool), agent_package (Option<Pubkey>), receipt_hash ([u8; 32]), operator (Pubkey), settled_at (i64), status (enum: Settled=0, Refunded=1, Disputed=2). Size: 8 + (4+64) + 32 + 8 + 8 + 1 + (1+32) + 32 + 32 + 8 + 1 = ~232 bytes.
    - Define `TaskStatus` enum with Borsh serialization.
 2. Implement instructions:
-   - `register_agent_package.rs`: Author signs. Creates AgentPackage PDA. Validate split_bps <= 10000. Validate package_id length <= 64. Validate source_uri length <= 256. Set registered_at to Clock::get().unix_timestamp. Set active = true, counters to 0.
-   - `update_agent_package.rs`: Author signs (must match AgentPackage.author). Can update source_uri, split_bps, active. Same validations.
+   - `register_agent_package.rs`: Author signs. Creates AgentPackage PDA. Validate split_bps <= 10000. Validate package_id length <= 64. Validate source_uri length <= 256. Validate content_hash is not all zeros. Set registered_at to Clock::get().unix_timestamp. Set active = true, counters to 0.
+   - `update_agent_package.rs`: Author signs (must match AgentPackage.author). Can update source_uri, content_hash, split_bps, active. When source_uri is updated, content_hash must also be updated. Same validations.
    - `settle_task.rs`: This is the critical instruction. Operator authority signs. Accounts: OperatorConfig, CustomerBalance, TaskReceipt (init), vault token account, treasury token account, optional AgentPackage, optional author token account.
      - Check !paused.
      - Call daily reset helper on CustomerBalance.

@@ -141,9 +141,12 @@
 >   runtimes)
 > 
 > An `AgentPackage` PDA stores the author's wallet, a split percentage
-> (basis points), and a reference to the package source (repo URL, Arweave
-> URI, compressed archive, etc.). Registration is permissionless — anyone
-> can publish.
+> (basis points), a content-addressed reference to the package source, and
+> a SHA-256 content hash for integrity verification. The `source_uri`
+> should be an Arweave transaction ID (`ar://...`) uploaded via Irys —
+> preferred per §3a decentralized-first principle — ensuring permanent,
+> tamper-proof availability. Repo URLs are acceptable during development.
+> Registration is permissionless — anyone can publish.
 > 
 > When a customer's task uses a public agent package, the `settle_task`
 > instruction includes the package's PDA. The program uses it to route a
@@ -316,6 +319,37 @@
 > - Customer disputes a charge → manual resolution initially, on-chain
 >   dispute mechanism later.
 > 
+> ### 7.7. Agent package storage (resolved)
+> 
+> **Decision:** Agent package files (SOUL.md, skills, tools, configs) are
+> stored on **Arweave via Irys** for permanent, decentralized availability
+> per §3a. The on-chain `AgentPackage` PDA stores only a lightweight
+> pointer (`source_uri` as `ar://txid`) and a `content_hash` (`[u8; 32]`,
+> SHA-256 of the package bundle) for integrity verification.
+> 
+> **Why not Solana directly?** Solana accounts have a 10 MB hard limit at
+> ~70 SOL rent cost. Agent packages (50 KB–500 KB+) would be prohibitively
+> expensive. Arweave via Irys costs ~$0.05–0.20/GB one-time with permanent
+> storage guarantees.
+> 
+> **Alternatives considered:**
+> - **Shadow Drive** — Solana-native but not permanent (economic incentive
+>   model, ~$0.05/GB/year). Suitable for mutable data, not immutable agent
+>   bundles.
+> - **IPFS + Filecoin** — Requires active pinning; storage deals expire.
+> - **Celestia** — DA-layer designed for rollup blobs with ~30-day expiry,
+>   not suited for persistent file storage.
+> - **ZK Compression (Light Protocol)** — Excellent for compressed account
+>   state (95-99% cheaper), but designed for structured PDA data, not bulk
+>   file blobs.
+> 
+> **Verification flow:** Consumers fetch the bundle from `ar://txid`,
+> compute SHA-256, and compare against the on-chain `content_hash`. This
+> ensures the agent code hasn't been tampered with since registration.
+> 
+> **Reuse:** The Task 4 Irys receipt uploader module provides the same
+> upload + hash primitives needed for agent package uploads.
+> 
 > ## 8. Anchor program sketch
 > 
 > ### Accounts
@@ -331,7 +365,8 @@
 > ├── package_id: String         // unique identifier
 > ├── author: Pubkey             // author's wallet (receives royalties)
 > ├── split_bps: u16             // author's share in basis points (e.g. 3000 = 30%)
-> ├── source_uri: String         // repo URL, Arweave URI, or compressed archive ref
+> ├── source_uri: String         // Arweave URI (ar://txid) preferred; repo URL for dev
+> ├── content_hash: [u8; 32]    // SHA-256 of the package bundle at source_uri
 > ├── total_earned: u64          // cumulative USDC earned (quality signal)
 > ├── task_count: u64            // total tasks run
 > ├── success_count: u64         // tasks that met quality threshold
@@ -369,12 +404,16 @@
 > initialize_operator(authority, treasury, protocol_fee_bps)
 >   → Creates OperatorConfig PDA.
 > 
-> register_agent_package(package_id, split_bps, source_uri)
+> register_agent_package(package_id, split_bps, source_uri, content_hash)
 >   → Called by the author. Creates AgentPackage PDA with the signer as
->      author. Permissionless — anyone can publish.
+>      author. `source_uri` should be an Arweave URI (`ar://txid`) for
+>      permanent decentralized storage; `content_hash` is the SHA-256 of
+>      the package bundle at that URI. Permissionless — anyone can publish.
 > 
-> update_agent_package(source_uri, split_bps, active)
->   → Called by the author. Updates their package metadata.
+> update_agent_package(source_uri, content_hash, split_bps, active)
+>   → Called by the author. Updates their package metadata. When updating
+>      the source, both `source_uri` and `content_hash` must be provided
+>      together to maintain integrity.
 > 
 > create_customer_account(max_per_task, max_per_day)
 >   → Creates CustomerBalance PDA for the signing customer.

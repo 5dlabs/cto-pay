@@ -1,7 +1,7 @@
 ## Build Arweave/Irys Receipt Upload Module (Nova - Bun/TypeScript)
 
 ### Objective
-Create a TypeScript module that takes an itemized receipt JSON object, uploads it to Arweave via Irys (formerly Bundlr) for permanent decentralized storage per §3a design principles, and returns the content-addressed transaction ID and SHA-256 hash for on-chain reference. This module is consumed by both the controller integration (Task 5) and the CLI demo (Task 6).
+Create a TypeScript module that takes an itemized receipt JSON object, uploads it to Arweave via Irys (formerly Bundlr) for permanent decentralized storage per §3a design principles, and returns the content-addressed transaction ID and SHA-256 hash for on-chain reference. This module is consumed by both the controller integration (Task 5) and the CLI demo (Task 6). **Note:** The same upload + SHA-256 primitives are reusable for agent package uploads (see §7.7 in the design brief) — authors upload their agent bundles to Arweave and store the `ar://txid` + `content_hash` in the AgentPackage PDA.
 
 ### Ownership
 - Agent: nova
